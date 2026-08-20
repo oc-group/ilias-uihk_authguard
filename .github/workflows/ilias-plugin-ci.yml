@@ -1,0 +1,16 @@
+name: ILIAS Plugin Code Quality
+
+on:
+  push:
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
+
+jobs:
+  test:
+    name: Plugin Code Quality
+    uses: oc-group/ilias-plugin-ci/.github/workflows/plugin-ci.yml@release_9
+    secrets: inherit
+    with:
+      plugin_name: "AuthGuard"
+      plugin_path: "Customizing/global/plugins/Services/UIComponent/UserInterfaceHook"

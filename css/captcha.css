@@ -1,0 +1,34 @@
+/*
+ * This file is part of AuthGuard UI Plugin for ILIAS,
+ * developed by OC Open Consulting to block automated self-registration
+ * submissions with a local image CAPTCHA.
+ */
+
+.ilAuthGuardWidget {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid #d3d3d3;
+    border-radius: 4px;
+    background: #f8f9fa;
+}
+
+.ilAuthGuardShield {
+    flex-shrink: 0;
+    color: #6c757d;
+}
+
+.ilAuthGuardImage {
+    border: 1px solid #d3d3d3;
+    border-radius: 2px;
+}
+
+.ilAuthGuardReload {
+    white-space: nowrap;
+}
+
+.ilAuthGuardInput {
+    max-width: 12rem;
+}

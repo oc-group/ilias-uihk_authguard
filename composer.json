@@ -1,0 +1,22 @@
+{
+    "name": "oc-group/authguard",
+    "description": "ILIAS plugin that blocks self-registration submissions failing a local image CAPTCHA check.",
+    "type": "project",
+    "license": "GPL-3.0-or-later",
+    "require": {
+        "php": ">=8.1 <8.3",
+        "gregwar/captcha": "^1.2"
+    },
+    "authors": [
+        {
+            "name": "Dienifer Mendonça",
+            "email": "dienifer@oc-group.eu"
+        }
+    ],
+    "minimum-stability": "stable",
+    "config": {
+        "platform": {
+            "php": "8.1"
+        }
+    }
+}

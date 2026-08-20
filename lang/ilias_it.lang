@@ -1,0 +1,9 @@
+captcha_alt#:#Immagine CAPTCHA
+captcha_info#:#Inserisci i caratteri mostrati nell'immagine sopra.
+captcha_label#:#Codice di sicurezza
+captcha_reload#:#Ricarica immagine
+captcha_required#:#Devi inserire il codice CAPTCHA.
+captcha_validation_failed#:#Il codice CAPTCHA inserito non è corretto. Riprova.
+plugin_description#:#Blocca le richieste di autoregistrazione che non superano una verifica CAPTCHA locale.
+plugin_title#:#AuthGuard
+submit_too_fast#:#Il modulo è stato inviato troppo rapidamente. Compilalo di nuovo.
