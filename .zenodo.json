@@ -1,0 +1,29 @@
+{
+    "upload_type": "software",
+    "title": "AuthGuard: bot defence for the ILIAS account-registration form",
+    "version": "9.1.0",
+    "description": "<p>ILIAS plugin that rejects automated submissions of the self-registration form. It generates a CAPTCHA image on the ILIAS server itself, contacts no third-party service, and no visitor data leaves the installation. Alongside the image it adds checks that ask a legitimate visitor for nothing: each code is single-use, image regeneration is throttled per session, and a submission arriving less than two seconds after the form was displayed is refused.</p><p>ILIAS core shipped a CAPTCHA on the self-registration form up to ILIAS 7 and <a href=\"https://docu.ilias.de/go/wiki/wpage_7029_1357\">removed it in ILIAS 8</a> on the grounds that it no longer kept bots out. This plugin restores the protection as a user-interface hook plugin, without any change to the ILIAS core.</p><p>This release offers an image-only challenge and therefore does not meet WCAG 2.1 success criterion 1.1.1; installations subject to EN 301 549 should provide an alternative registration route. Development is directed at checks that ask the visitor for nothing rather than at a harder puzzle.</p><p>For ILIAS 9 (9.0 and later 9.x), PHP 8.1 or 8.2.</p>",
+    "creators": [
+        {
+            "name": "OC Open Consulting SB Srl",
+            "affiliation": "OC Open Consulting SB Srl"
+        }
+    ],
+    "license": "gpl-3.0-or-later",
+    "access_right": "open",
+    "language": "eng",
+    "keywords": [
+        "ILIAS",
+        "CAPTCHA",
+        "bot protection",
+        "spam prevention",
+        "self-registration",
+        "learning management system",
+        "PHP"
+    ],
+    "grants": [
+        {
+            "id": "10.13039/501100000780::101177422"
+        }
+    ]
+}
