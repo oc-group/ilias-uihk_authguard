@@ -4,6 +4,16 @@ Blocks automated (bot) submissions of the ILIAS self-registration form with a lo
 image CAPTCHA. ILIAS core shipped a Securimage-based CAPTCHA on self-registration through ILIAS 7;
 it was removed in ILIAS 8. This plugin reimplements the protection as a `uihk` plugin.
 
+## Credits
+
+Developed by **OC Open Consulting SB Srl** as part of the Horizon Europe project
+[**DIAMETER**](https://www.diameter-eu.org/).
+
+Funded by the European Union under Grant Agreement No 101177422. Views and opinions expressed are
+however those of the author(s) only and do not necessarily reflect those of the European Union or
+the European Commission. Neither the European Union nor the granting authority can be held
+responsible for them.
+
 ## License
 
 GNU General Public License v3.0 or later -- see [LICENSE](LICENSE).
