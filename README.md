@@ -1,8 +1,10 @@
 # AuthGuard plugin for ILIAS
 
 Blocks automated (bot) submissions of the ILIAS self-registration form with a locally generated
-image CAPTCHA. ILIAS core shipped a Securimage-based CAPTCHA on self-registration through ILIAS 7;
-it was removed in ILIAS 8. This plugin reimplements the protection as a `uihk` plugin.
+image CAPTCHA. ILIAS core shipped a Securimage-based CAPTCHA on self-registration through ILIAS 7 and
+[removed it in ILIAS 8](https://docu.ilias.de/go/wiki/wpage_7029_1357), on the grounds that it no
+longer kept bots out. This plugin reimplements the protection as a `uihk` plugin -- see
+[Accessibility](#accessibility) below for what that inherits, and where the plugin is going instead.
 
 ## Privacy by design
 
