@@ -1,5 +1,7 @@
 # AuthGuard plugin for ILIAS
 
+[![DOI](https://zenodo.org/badge/1340417188.svg)](https://doi.org/10.5281/zenodo.22028606)
+
 Blocks automated (bot) submissions of the ILIAS self-registration form with a locally generated
 image CAPTCHA. ILIAS core shipped a Securimage-based CAPTCHA on self-registration through ILIAS 7 and
 [removed it in ILIAS 8](https://docu.ilias.de/go/wiki/wpage_7029_1357), on the grounds that it no
