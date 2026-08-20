@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-E-mail **plugins@oc-group.eu** -- the address listed as `$responsible_mail` in `plugin.php`.
+E-mail **plugins@oc-group.eu** — the address listed as `$responsible_mail` in `plugin.php`.
 
 **Do not open a public issue.** This plugin guards the account-registration form of every
 installation running it, so a public report is an exploitation guide until each of them has updated.
