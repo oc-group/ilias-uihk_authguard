@@ -22,7 +22,7 @@ declare(strict_types=1);
 class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
 {
     /** @var string tpl_id of ilPropertyFormGUI's rendered template */
-    private const PROPERTY_FORM_TPL_ID = "Services/Form/tpl.property_form.html";
+    private const PROPERTY_FORM_TPL_ID = "components/ILIAS/Form/tpl.property_form.html";
 
     /** @var ilAuthGuardPlugin */
     protected ilAuthGuardPlugin $plugin;

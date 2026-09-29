@@ -56,9 +56,9 @@ By e-mail to plugins@oc-group.eu, not as a public issue — see [SECURITY.md](SE
 From the ILIAS directory, run:
 
 ```sh
-mkdir -p Customizing/global/plugins/Services/UIComponent/UserInterfaceHook
-cd Customizing/global/plugins/Services/UIComponent/UserInterfaceHook
-git clone -b release_9 https://github.com/oc-group/ilias-uihk_authguard AuthGuard
+mkdir -p public/Customizing/global/plugins/Services/UIComponent/UserInterfaceHook
+cd public/Customizing/global/plugins/Services/UIComponent/UserInterfaceHook
+git clone -b release_11 https://github.com/oc-group/ilias-uihk_authguard AuthGuard
 ```
 
 ### Install Composer dependencies
