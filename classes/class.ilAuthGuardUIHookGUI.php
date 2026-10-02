@@ -146,7 +146,7 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
         );
 
         $main_tpl = $dic->ui()->mainTemplate();
-        $main_tpl->addCss($this->plugin->getDirectory() . "/css/captcha.css");
+        $main_tpl->addCss($this->plugin->getRelativeDirectory() . "/css/captcha.css");
 
         // json_encode() gives a safely quoted JS string literal; raw
         // concatenation is the wrong tool in a JS-string context.
