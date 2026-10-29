@@ -35,7 +35,7 @@ class ilAuthGuardFormProtection
     public const MIN_SUBMIT_INTERVAL_SECONDS = 2.0;
 
     /** @var string */
-    private const WIDGET_SCRIPT = "/node_modules/altcha/dist/main/altcha.i18n.min.js";
+    private const WIDGET_SCRIPT = "/js/authguard-widget.js";
 
     /** @var ilAuthGuardSessionStore */
     private ilAuthGuardSessionStore $store;
