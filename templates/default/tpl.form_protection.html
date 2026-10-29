@@ -1,0 +1,18 @@
+<div class="ilAuthGuardProtection" data-authguard-form="{FORM_ID}">
+	<div class="ilAuthGuardTrap" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
+		<input type="text" name="{HONEYPOT_NAME}" value="" tabindex="-1" autocomplete="off" aria-hidden="true" />
+	</div>
+	<altcha-widget challenge="{CHALLENGE_URL}" name="{POW_FIELD}" auto="onload"></altcha-widget>
+	<script type="module" src="{WIDGET_SCRIPT_URL}"></script>
+	<noscript>
+		<div class="ilAuthGuardWidget">
+			<svg class="ilAuthGuardShield" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+				<path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+			</svg>
+			<img class="ilAuthGuardImage" src="{IMAGE_URL}" alt="{CAPTCHA_ALT}" />
+		</div>
+		<label for="authguard_code_{FORM_ID}">{CAPTCHA_LABEL} <span class="asterisk">*</span></label>
+		<input type="text" class="form-control ilAuthGuardInput" id="authguard_code_{FORM_ID}" name="{CAPTCHA_FIELD}" maxlength="16" autocomplete="off" required="required" />
+		<div class="help-block">{CAPTCHA_INFO}</div>
+	</noscript>
+</div>

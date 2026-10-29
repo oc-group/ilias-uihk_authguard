@@ -1,11 +1,12 @@
 {
     "name": "oc-group/authguard",
-    "description": "ILIAS plugin that blocks self-registration submissions failing a local image CAPTCHA check.",
+    "description": "ILIAS plugin that protects forms against bot submissions: timing, honeypot, proof-of-work and a fallback image CAPTCHA.",
     "type": "project",
     "license": "GPL-3.0-or-later",
     "require": {
         "php": ">=8.3 <8.5",
-        "gregwar/captcha": "^1.2"
+        "gregwar/captcha": "^1.2",
+        "altcha-org/altcha": "^2.3"
     },
     "authors": [
         {

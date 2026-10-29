@@ -17,20 +17,11 @@ use ILIAS\HTTP\Response\ResponseHeader;
 use ILIAS\HTTP\StatusCode;
 
 /**
- * Shared plugin utility: the CAPTCHA comparison, the expected-phrase session
- * accessors, and the HTTP responses reused across the plugin's other classes.
+ * Shared plugin utility: the CAPTCHA comparison and the HTTP responses
+ * reused across the plugin's other classes.
  */
 class ilAuthGuardHelper
 {
-    /** @var string session key holding the expected CAPTCHA phrase */
-    public const SESSION_KEY_EXPECTED_PHRASE = "authguard_expected_phrase";
-
-    /** @var string session key holding the last generation timestamp, as microtime(true) */
-    public const SESSION_KEY_LAST_GENERATION_TIME = "authguard_last_generation_time";
-
-    /** @var string session key holding the last widget render timestamp, as microtime(true) */
-    public const SESSION_KEY_FORM_RENDERED_TIME = "authguard_form_rendered_time";
-
     /** @var int RFC 6585 status code, not covered by core's StatusCode */
     private const HTTP_TOO_MANY_REQUESTS = 429;
 
@@ -53,92 +44,6 @@ class ilAuthGuardHelper
         }
 
         return hash_equals($expected, strtolower(trim($submitted)));
-    }
-
-    /**
-     * Stores the freshly generated CAPTCHA phrase for later comparison.
-     *
-     * @param string $phrase
-     * @return void
-     */
-    public static function storeExpectedPhrase(string $phrase): void
-    {
-        ilSession::set(self::SESSION_KEY_EXPECTED_PHRASE, $phrase);
-    }
-
-    /**
-     * Reads back the expected CAPTCHA phrase. Returns an empty string when
-     * none was stored, so a missing phrase fails the comparison instead of
-     * raising.
-     *
-     * @return string
-     */
-    public static function readExpectedPhrase(): string
-    {
-        return (string) (ilSession::get(self::SESSION_KEY_EXPECTED_PHRASE) ?? "");
-    }
-
-    /**
-     * Clears the expected CAPTCHA phrase, so it can be compared against at
-     * most once.
-     *
-     * @return void
-     */
-    public static function clearExpectedPhrase(): void
-    {
-        ilSession::clear(self::SESSION_KEY_EXPECTED_PHRASE);
-    }
-
-    /**
-     * Stores the microtime(true) timestamp of the image just generated, which
-     * is what makes the regeneration interval enforceable below one second.
-     *
-     * @param float $timestamp
-     * @return void
-     */
-    public static function storeLastGenerationTime(float $timestamp): void
-    {
-        ilSession::set(self::SESSION_KEY_LAST_GENERATION_TIME, $timestamp);
-    }
-
-    /**
-     * Reads back the timestamp of the last image generation. Returns null when
-     * none was stored, so the first generation in a session is never throttled;
-     * an int stored by an earlier request is cast, not rejected.
-     *
-     * @return float|null
-     */
-    public static function readLastGenerationTime(): ?float
-    {
-        $stored = ilSession::get(self::SESSION_KEY_LAST_GENERATION_TIME);
-
-        return $stored === null ? null : (float) $stored;
-    }
-
-    /**
-     * Stores the microtime(true) timestamp of the render that placed the widget
-     * in the form.
-     *
-     * @param float $timestamp
-     * @return void
-     */
-    public static function storeFormRenderedTime(float $timestamp): void
-    {
-        ilSession::set(self::SESSION_KEY_FORM_RENDERED_TIME, $timestamp);
-    }
-
-    /**
-     * Reads back the timestamp of the last render that carried the widget.
-     * Returns null when none was stored, so a session without one is left to
-     * the other checks rather than rejected on the strength of a missing value.
-     *
-     * @return float|null
-     */
-    public static function readFormRenderedTime(): ?float
-    {
-        $stored = ilSession::get(self::SESSION_KEY_FORM_RENDERED_TIME);
-
-        return $stored === null ? null : (float) $stored;
     }
 
     /**
@@ -182,42 +87,42 @@ class ilAuthGuardHelper
     }
 
     /**
-     * Sends an image inline with caching suppressed, and terminates the
-     * request. Not routed through $DIC->fileDelivery(), whose caching cannot
-     * be disabled on every supported version, while a cached puzzle would
-     * keep serving a phrase the session has already replaced. Headers as
+     * Sends a body with caching suppressed and terminates the request. Not
+     * routed through $DIC->fileDelivery(), whose caching cannot be disabled
+     * on every supported version, while a cached puzzle or challenge would
+     * keep serving a value the session has already replaced. Headers as
      * core's BaseDelivery emits them with its caching off.
      *
-     * @param string $body the raw image bytes
-     * @param string $mime_type the image's media type, e.g. "image/jpeg"
-     * @param string $file_name the name offered in Content-Disposition
+     * @param string $body the raw bytes
+     * @param string $mime_type the media type, e.g. "image/jpeg"
+     * @param string|null $disposition the Content-Disposition value, if any
      * @return never
      */
-    public static function respondWithUncacheableImage(
+    public static function respondUncacheable(
         string $body,
         string $mime_type,
-        string $file_name
+        ?string $disposition
     ): never {
         global $DIC;
 
         /** @var \ILIAS\HTTP\Services $http */
         $http = $DIC->http();
 
-        $http->saveResponse(
-            $http->response()
-                ->withHeader(ResponseHeader::CONTENT_TYPE, $mime_type)
-                ->withHeader(
-                    ResponseHeader::CONTENT_DISPOSITION,
-                    'inline; filename="' . $file_name . '"'
-                )
-                ->withHeader(ResponseHeader::CONTENT_LENGTH, (string) strlen($body))
-                ->withHeader(
-                    ResponseHeader::CACHE_CONTROL,
-                    "no-store, no-cache, must-revalidate, post-check=0, pre-check=0"
-                )
-                ->withHeader(ResponseHeader::EXPIRES, "0")
-                ->withBody(Streams::ofString($body))
-        );
+        $response = $http->response()
+            ->withHeader(ResponseHeader::CONTENT_TYPE, $mime_type)
+            ->withHeader(ResponseHeader::CONTENT_LENGTH, (string) strlen($body))
+            ->withHeader(
+                ResponseHeader::CACHE_CONTROL,
+                "no-store, no-cache, must-revalidate, post-check=0, pre-check=0"
+            )
+            ->withHeader(ResponseHeader::EXPIRES, "0")
+            ->withBody(Streams::ofString($body));
+
+        if ($disposition !== null) {
+            $response = $response->withHeader(ResponseHeader::CONTENT_DISPOSITION, $disposition);
+        }
+
+        $http->saveResponse($response);
         $http->sendResponse();
         $http->close();
     }

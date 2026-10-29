@@ -1,0 +1,8 @@
+{
+  "name": "ilias-uihk_authguard",
+  "private": true,
+  "description": "Front-end dependencies of the AuthGuard ILIAS plugin (installed with npm install, never committed)",
+  "dependencies": {
+    "altcha": "3.5.0"
+  }
+}

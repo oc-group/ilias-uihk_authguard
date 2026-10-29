@@ -6,6 +6,7 @@
  * submissions with a local image CAPTCHA.
  *
  * @author Dienifer Mendonça <dienifer@oc-group.eu>
+ * @author Vincenzo Padula <vincenzo@oc-group.eu>
  * @copyright 2026 OC Open Consulting SB Srl
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -25,8 +26,8 @@ class ilAuthGuardPlugin extends ilUserInterfaceHookPlugin
     /** @var string */
     public const PREFIX = "ui_uihk_authgrd";
 
-    /** @var float minimum seconds between the form being rendered and its submit; may be fractional */
-    public const MIN_SUBMIT_INTERVAL_SECONDS = 2.0;
+    /** @var string form id the registration form is protected under */
+    public const REGISTRATION_FORM_ID = "registration";
 
     /** @var string[] ilCtrl class path of the self-registration GUI, lowercase */
     public const REGISTRATION_CLASS_PATH = ["ilstartupgui", "ilaccountregistrationgui"];
@@ -36,7 +37,7 @@ class ilAuthGuardPlugin extends ilUserInterfaceHookPlugin
 
     /**
      * Decides whether this request is the self-registration form's own
-     * submit, and if so enforces the CAPTCHA.
+     * submit, and if so has the form protection verify it.
      *
      * @return void
      */
@@ -47,8 +48,7 @@ class ilAuthGuardPlugin extends ilUserInterfaceHookPlugin
         }
 
         if ($this->shouldInterceptRegistrationSubmit()) {
-            $this->enforceSubmitTiming();
-            $this->enforceCaptcha();
+            $this->enforceFormProtection();
         }
     }
 
@@ -86,63 +86,24 @@ class ilAuthGuardPlugin extends ilUserInterfaceHookPlugin
     }
 
     /**
-     * Rejects a submit that arrives sooner after the form was rendered than a
-     * person could have filled it in. A session with no render timestamp is
-     * left alone: the CAPTCHA check already rejects one that holds no expected
-     * phrase, and this check has nothing to measure against.
+     * Verifies the registration submit and redirects back to the form with
+     * the failure message when a check does not pass. The form protection
+     * consumes its state first, so the redirected form is rendered anew.
      *
      * @return void
      */
-    private function enforceSubmitTiming(): void
-    {
-        $rendered_at = ilAuthGuardHelper::readFormRenderedTime();
-
-        if ($rendered_at === null) {
-            return;
-        }
-
-        if ((microtime(true) - $rendered_at) >= self::MIN_SUBMIT_INTERVAL_SECONDS) {
-            return;
-        }
-
-        ilAuthGuardHelper::redirectWithFailureMessage($this->txt("submit_too_fast"));
-    }
-
-    /**
-     * Compares the submitted code against the phrase held in the session and
-     * redirects back to the form on failure. The phrase is consumed before
-     * the comparison, so it can never be tried twice. An empty field and a
-     * missing phrase share one message, a wrong code gets another.
-     *
-     * @return void
-     */
-    private function enforceCaptcha(): void
+    private function enforceFormProtection(): void
     {
         global $DIC;
 
-        $post = $DIC->http()->wrapper()->post();
-        $submitted = "";
-        if ($post->has("captcha_code")) {
-            try {
-                $submitted = $post->retrieve("captcha_code", $DIC->refinery()->kindlyTo()->string());
-            } catch (\UnexpectedValueException) {
-                // An array-valued field must fail closed here, not raise an error.
-                $submitted = "";
-            }
+        $result = (new ilAuthGuardFormProtection())->verify(
+            self::REGISTRATION_FORM_ID,
+            $DIC->http()->request()
+        );
+
+        if (!$result->isPassed()) {
+            ilAuthGuardHelper::redirectWithFailureMessage($result->getMessage());
         }
-
-        $expected = ilAuthGuardHelper::readExpectedPhrase();
-        ilAuthGuardHelper::clearExpectedPhrase();
-
-        if (trim($submitted) === "" || trim($expected) === "") {
-            ilAuthGuardHelper::redirectWithFailureMessage($this->txt("captcha_required"));
-        }
-
-        if (ilAuthGuardHelper::isValid($submitted, $expected)) {
-            return;
-        }
-
-        ilAuthGuardHelper::redirectWithFailureMessage($this->txt("captcha_validation_failed"));
     }
 
     /**
