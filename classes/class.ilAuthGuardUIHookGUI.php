@@ -6,6 +6,7 @@
  * submissions with a local image CAPTCHA.
  *
  * @author Dienifer Mendonça <dienifer@oc-group.eu>
+ * @author Vincenzo Padula <vincenzo@oc-group.eu>
  * @copyright 2026 OC Open Consulting SB Srl
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -13,8 +14,8 @@
 declare(strict_types=1);
 
 /**
- * Splices the CAPTCHA widget (image + reload control + text input) into the
- * self-registration form, just before its submit button. Rendering only: the
+ * Splices the form protection markup into the self-registration form, just
+ * before its submit button. Rendering only: the
  * template_get hook fires during HTML rendering and never inside a GUI's own
  * POST-handling branch, so it cannot be relied on for the check itself.
  * Enforcement is server-side and independent of this class.
@@ -89,7 +90,7 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
     }
 
     /**
-     * Builds the widget markup and splices it into the form HTML just before
+     * Builds the protection row and splices it into the form HTML just before
      * the submit-button row, setting the once-per-request guard. A missing
      * anchor is logged rather than ignored: enforcement keeps rejecting every
      * submission afterwards, so a silent failure would leave no trail.
@@ -102,16 +103,15 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
         global $DIC;
 
         self::$widget_injected = true;
-        ilAuthGuardHelper::storeFormRenderedTime(microtime(true));
 
-        $widget_html = $this->renderWidget($DIC);
+        $row_html = $this->renderRow();
         $html = (string) ($a_par["html"] ?? "");
 
         // "ilFormFooter row clearfix" wraps only the submit-button row;
-        // prepending the widget there puts it right before the button.
-        $replaced = preg_replace(
+        // prepending the row there puts it right before the button.
+        $replaced = preg_replace_callback(
             '/<div class="ilFormFooter row clearfix">/',
-            $widget_html . '<div class="ilFormFooter row clearfix">',
+            static fn (array $match): string => $row_html . $match[0],
             $html,
             1,
             $replacement_count
@@ -119,8 +119,8 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
 
         if ($replaced === null || $replacement_count === 0) {
             $DIC->logger()->root()->error(
-                "The CAPTCHA widget could not be injected into the registration form; "
-                . "submissions will therefore be rejected."
+                "AuthGuard: the protection could not be injected into the registration "
+                . "form; submissions will therefore be rejected."
             );
         }
 
@@ -131,34 +131,20 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
     }
 
     /**
-     * Renders the widget template and registers its CSS/JS. Reached only once
-     * an injection is certain, so neither the stylesheet nor the reload
-     * script load on unrelated pages.
+     * Wraps the form protection markup in a row of the property form's
+     * layout. Reached only once an injection is certain, so neither the
+     * stylesheet nor the widget script load on unrelated pages.
      *
-     * @param \ILIAS\DI\Container $dic
      * @return string
      */
-    private function renderWidget(\ILIAS\DI\Container $dic): string
+    private function renderRow(): string
     {
-        $image_src = $dic->ctrl()->getLinkTargetByClass(
-            [ilUIPluginRouterGUI::class, ilAuthGuardGUI::class],
-            ilAuthGuardGUI::CMD_SHOW_IMAGE
+        $tpl = $this->plugin->getTemplate("default/tpl.registration_row.html");
+        $tpl->setVariable("ROW_LABEL", $this->plugin->txt("widget_label"));
+        $tpl->setVariable(
+            "PROTECTION",
+            (new ilAuthGuardFormProtection())->render(ilAuthGuardPlugin::REGISTRATION_FORM_ID)
         );
-
-        $main_tpl = $dic->ui()->mainTemplate();
-        $main_tpl->addCss($this->plugin->getRelativeDirectory() . "/css/captcha.css");
-
-        // json_encode() gives a safely quoted JS string literal; raw
-        // concatenation is the wrong tool in a JS-string context.
-        $image_src_js = json_encode($image_src, JSON_THROW_ON_ERROR);
-
-        $tpl = $this->plugin->getTemplate("default/tpl.captcha_widget.html");
-        $tpl->setVariable("CAPTCHA_IMG_SRC", htmlspecialchars($image_src, ENT_QUOTES, "UTF-8"));
-        $tpl->setVariable("CAPTCHA_IMG_SRC_JS", $image_src_js);
-        $tpl->setVariable("CAPTCHA_ALT", $this->plugin->txt("captcha_alt"));
-        $tpl->setVariable("CAPTCHA_LABEL", $this->plugin->txt("captcha_label"));
-        $tpl->setVariable("CAPTCHA_INFO", $this->plugin->txt("captcha_info"));
-        $tpl->setVariable("CAPTCHA_RELOAD_TEXT", $this->plugin->txt("captcha_reload"));
 
         return $tpl->get();
     }

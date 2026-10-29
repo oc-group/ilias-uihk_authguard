@@ -1,9 +1,13 @@
 captcha_alt#:#CAPTCHA image
 captcha_info#:#Enter the characters shown in the image above.
 captcha_label#:#Security code
-captcha_reload#:#Reload image
 captcha_required#:#You must enter the CAPTCHA code.
 captcha_validation_failed#:#The CAPTCHA code you entered is not correct. Please try again.
-plugin_description#:#Blocks self-registration submissions that fail a local image CAPTCHA check.
+form_state_missing#:#The security check could not be matched to this form. Please reload the page and try again.
+plugin_description#:#Protects forms against automated submissions with invisible checks and a fallback image CAPTCHA.
 plugin_title#:#AuthGuard
+pow_failed#:#The automatic security check was not completed. Please reload the page and try again.
+pow_missing#:#The automatic security check had not finished yet. Please try again.
+security_check_failed#:#The security check was not passed. Please reload the page and try again.
 submit_too_fast#:#The form was submitted too quickly. Please fill it in again.
+widget_label#:#Security check
