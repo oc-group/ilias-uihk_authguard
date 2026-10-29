@@ -35,7 +35,7 @@ class ilAuthGuardFormProtection
     public const MIN_SUBMIT_INTERVAL_SECONDS = 2.0;
 
     /** @var string */
-    private const WIDGET_SCRIPT = "/js/altcha/altcha.i18n.min.js";
+    private const WIDGET_SCRIPT = "/node_modules/altcha/dist/main/altcha.i18n.min.js";
 
     /** @var ilAuthGuardSessionStore */
     private ilAuthGuardSessionStore $store;
@@ -78,15 +78,21 @@ class ilAuthGuardFormProtection
             return false;
         }
 
-        if (!$DIC->isDependencyAvailable("component.repository")) {
+        // isDependencyAvailable() calls a method named like the id, which does
+        // not exist for "component.repository" and throws an Error.
+        try {
+            if (!isset($DIC["component.repository"])) {
+                return false;
+            }
+
+            /** @var \ilComponentRepository $repository */
+            $repository = $DIC["component.repository"];
+
+            return $repository->hasPluginId(ilAuthGuardPlugin::PLUGIN_ID)
+                && $repository->getPluginById(ilAuthGuardPlugin::PLUGIN_ID)->isActive();
+        } catch (\Throwable $e) {
             return false;
         }
-
-        /** @var \ilComponentRepository $repository */
-        $repository = $DIC["component.repository"];
-
-        return $repository->hasPluginId(ilAuthGuardPlugin::PLUGIN_ID)
-            && $repository->getPluginById(ilAuthGuardPlugin::PLUGIN_ID)->isActive();
     }
 
     /**

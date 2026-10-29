@@ -174,7 +174,7 @@ class FormProtectionTest extends TestCase
         $this->assertSame("captcha_code", $vars["CAPTCHA_FIELD"]);
         $this->assertSame("url/challenge/contact", $vars["CHALLENGE_URL"]);
         $this->assertSame("url/showImage/contact", $vars["IMAGE_URL"]);
-        $this->assertSame("asset/js/altcha/altcha.i18n.min.js", $vars["WIDGET_SCRIPT_URL"]);
+        $this->assertSame("asset/node_modules/altcha/dist/main/altcha.i18n.min.js", $vars["WIDGET_SCRIPT_URL"]);
     }
 
     public function testRenderRejectsAMalformedFormId(): void

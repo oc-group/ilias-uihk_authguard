@@ -89,6 +89,9 @@ responsible for them.
 
 GNU General Public License v3.0 or later — see [LICENSE](LICENSE).
 
+The proof-of-work widget is [Altcha](https://altcha.org) (MIT), installed as the npm dependency
+`altcha` (see `package.json`); the server side uses `altcha-org/altcha` (MIT) through Composer.
+
 ## Reporting a security issue
 
 By e-mail to plugins@oc-group.eu, not as a public issue — see [SECURITY.md](SECURITY.md).
@@ -111,6 +114,19 @@ git clone -b release_11 https://github.com/oc-group/ilias-uihk_authguard AuthGua
 cd AuthGuard
 composer install --no-dev
 ```
+
+### Install the front-end dependencies
+
+```sh
+npm install
+```
+
+Run it from the plugin directory (`AuthGuard`), next to `composer install`. ILIAS installs a plugin
+with `composer du` only and runs no npm step, so the Altcha widget (`node_modules/altcha`) is not
+there until you do this. Without it the widget script answers 404, the `<altcha-widget>` element is
+never defined and no proof-of-work is submitted. The image CAPTCHA is rendered only for visitors
+without JavaScript, so every visitor with JavaScript is rejected on the protected form (registration
+included) until `npm install` has been run.
 
 ### Install the plugin
 

@@ -1,5 +1,0 @@
-altcha (npm) 3.5.0
-file: dist/main/altcha.i18n.min.js (widget bundle with all translations, workers and styles inline)
-source: https://registry.npmjs.org/altcha/-/altcha-3.5.0.tgz (sha512-wBXNK1bBeWs/XTOZiyE3JQvRNECgFKYEJqcPxFW7tFd7ErG62yQmMlRasygZrza3zyNTTuon3BfMF/PcBcepcw==)
-license: MIT (LICENSE.txt)
-server counterpart: altcha-org/altcha (PHP) 2.3.0, composer.lock
