@@ -105,7 +105,7 @@ From the ILIAS directory, run:
 ```sh
 mkdir -p public/Customizing/global/plugins/Services/UIComponent/UserInterfaceHook
 cd public/Customizing/global/plugins/Services/UIComponent/UserInterfaceHook
-git clone -b release_11 https://github.com/oc-group/ilias-uihk_authguard AuthGuard
+git clone -b release_10 https://github.com/oc-group/ilias-uihk_authguard AuthGuard
 ```
 
 ### Install Composer dependencies

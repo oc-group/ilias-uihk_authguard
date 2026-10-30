@@ -4,7 +4,7 @@
     "type": "project",
     "license": "GPL-3.0-or-later",
     "require": {
-        "php": ">=8.3 <8.5",
+        "php": ">=8.2 <8.4",
         "gregwar/captcha": "^1.2",
         "altcha-org/altcha": "^2.3"
     },
@@ -17,7 +17,7 @@
     "minimum-stability": "stable",
     "config": {
         "platform": {
-            "php": "8.3"
+            "php": "8.2"
         }
     }
 }
