@@ -11,10 +11,10 @@
  */
 
 $id = "authgrd";
-$version = "11.1.1";
+$version = "10.1.1";
 
-$ilias_min_version = "11.0";
-$ilias_max_version = "11.999";
+$ilias_min_version = "10.0";
+$ilias_max_version = "10.999";
 
 $responsible = "OC Open Consulting SB Srl";
 $responsible_mail = "plugins@oc-group.eu";
