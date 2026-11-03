@@ -28,3 +28,7 @@
 .ilAuthGuardInput {
     max-width: 12rem;
 }
+
+.ilAuthGuardRecaptcha {
+    min-height: 78px;
+}

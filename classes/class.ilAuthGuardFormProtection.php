@@ -31,11 +31,23 @@ class ilAuthGuardFormProtection
     /** @var string POST field of the image CAPTCHA fallback */
     public const FIELD_CAPTCHA = "captcha_code";
 
+    /** @var string POST field the Google reCAPTCHA widget fills */
+    public const FIELD_RECAPTCHA = "g-recaptcha-response";
+
     /** @var float minimum seconds between render and submit; may be fractional */
     public const MIN_SUBMIT_INTERVAL_SECONDS = 2.0;
 
     /** @var string */
     private const WIDGET_SCRIPT = "/js/authguard-widget.js";
+
+    /** @var string */
+    private const RECAPTCHA_SCRIPT = "/js/authguard-recaptcha.js";
+
+    /** @var array<string, string[]> template variables that belong to a provider's block */
+    private const BLOCK_VARIABLES = [
+        ilAuthGuardSettings::PROVIDER_ALTCHA => ["CHALLENGE_URL", "POW_FIELD", "WIDGET_SCRIPT_URL"],
+        ilAuthGuardSettings::PROVIDER_RECAPTCHA => ["RECAPTCHA_SITE_KEY", "RECAPTCHA_SCRIPT_URL"],
+    ];
 
     /** @var ilAuthGuardSessionStore */
     private ilAuthGuardSessionStore $store;
@@ -46,20 +58,32 @@ class ilAuthGuardFormProtection
     /** @var \ilLogger|null fetched on first use */
     private ?\ilLogger $logger;
 
+    /** @var ilAuthGuardSettings|null built on first use */
+    private ?ilAuthGuardSettings $settings;
+
+    /** @var ilAuthGuardRecaptcha|null built on first use */
+    private ?ilAuthGuardRecaptcha $recaptcha;
+
     /**
      * @param ilAuthGuardSessionStore|null $store
      * @param ilAuthGuardProofOfWork|null $pow
      * @param \ilLogger|null $logger
+     * @param ilAuthGuardSettings|null $settings
+     * @param ilAuthGuardRecaptcha|null $recaptcha
      * @return void
      */
     public function __construct(
         ?ilAuthGuardSessionStore $store = null,
         ?ilAuthGuardProofOfWork $pow = null,
-        ?\ilLogger $logger = null
+        ?\ilLogger $logger = null,
+        ?ilAuthGuardSettings $settings = null,
+        ?ilAuthGuardRecaptcha $recaptcha = null
     ) {
         $this->store = $store ?? new ilAuthGuardSessionStore();
         $this->pow = $pow;
         $this->logger = $logger;
+        $this->settings = $settings;
+        $this->recaptcha = $recaptcha;
     }
 
     /**
@@ -113,11 +137,20 @@ class ilAuthGuardFormProtection
         $state->clearAll();
         $state->set(ilAuthGuardFormState::FIELD_RENDERED_AT, $this->now());
         $state->set(ilAuthGuardFormState::FIELD_HONEYPOT, $honeypot_name);
-        $this->getProofOfWork()->resetSecret($state);
+
+        $provider = $this->resolveProvider();
+        if ($provider === ilAuthGuardSettings::PROVIDER_ALTCHA) {
+            $this->getProofOfWork()->resetSecret($state);
+        }
 
         $this->registerAssets();
 
         return $this->renderMarkup([
+            "PROVIDER" => $provider,
+            "RECAPTCHA_SITE_KEY" => $provider === ilAuthGuardSettings::PROVIDER_RECAPTCHA
+                ? $this->getSettings()->getRecaptchaSiteKey()
+                : "",
+            "RECAPTCHA_SCRIPT_URL" => $this->getAssetUrl(self::RECAPTCHA_SCRIPT),
             "FORM_ID" => $form_id,
             "HONEYPOT_NAME" => $honeypot_name,
             "POW_FIELD" => self::FIELD_POW,
@@ -130,8 +163,9 @@ class ilAuthGuardFormProtection
 
     /**
      * Checks a submit and consumes the form's state, whatever the outcome.
-     * Order: timing, honeypot, proof-of-work, then the image CAPTCHA when no
-     * proof-of-work payload came in.
+     * Order: timing, honeypot, the selected challenge (Altcha proof-of-work
+     * or Google reCAPTCHA), then the image CAPTCHA when no answer to that
+     * challenge came in. Every rejection carries the same message.
      *
      * @param string $form_id the id given to render()
      * @param ServerRequestInterface $request
@@ -176,24 +210,19 @@ class ilAuthGuardFormProtection
         $honeypot_name = (string) $state->get(ilAuthGuardFormState::FIELD_HONEYPOT);
 
         if ($rendered_at === null || $honeypot_name === "") {
-            return $this->fail(
-                ilAuthGuardVerificationResult::REASON_MISSING_STATE,
-                "form_state_missing"
-            );
+            return $this->fail(ilAuthGuardVerificationResult::REASON_MISSING_STATE);
         }
 
         if (($this->now() - (float) $rendered_at) < self::MIN_SUBMIT_INTERVAL_SECONDS) {
-            return $this->fail(
-                ilAuthGuardVerificationResult::REASON_TIMING,
-                "submit_too_fast"
-            );
+            return $this->fail(ilAuthGuardVerificationResult::REASON_TIMING);
         }
 
         if (ilAuthGuardHoneypot::isTripped($body, $honeypot_name)) {
-            return $this->fail(
-                ilAuthGuardVerificationResult::REASON_HONEYPOT,
-                "security_check_failed"
-            );
+            return $this->fail(ilAuthGuardVerificationResult::REASON_HONEYPOT);
+        }
+
+        if ($this->resolveProvider() === ilAuthGuardSettings::PROVIDER_RECAPTCHA) {
+            return $this->evaluateRecaptcha($state, $body);
         }
 
         $pow_payload = $this->readString($body, self::FIELD_POW);
@@ -202,13 +231,35 @@ class ilAuthGuardFormProtection
                 return ilAuthGuardVerificationResult::passed();
             }
 
-            return $this->fail(
-                ilAuthGuardVerificationResult::REASON_POW,
-                "pow_failed"
-            );
+            return $this->fail(ilAuthGuardVerificationResult::REASON_POW);
         }
 
         return $this->evaluateCaptcha($state, $body);
+    }
+
+    /**
+     * A present reCAPTCHA answer is checked with Google and never falls
+     * through to the image CAPTCHA; an absent one means a visitor without
+     * JavaScript, who gets the image CAPTCHA.
+     *
+     * @param ilAuthGuardFormState $state
+     * @param array<mixed> $body
+     * @return ilAuthGuardVerificationResult
+     */
+    private function evaluateRecaptcha(
+        ilAuthGuardFormState $state,
+        array $body
+    ): ilAuthGuardVerificationResult {
+        $answer = $this->readString($body, self::FIELD_RECAPTCHA);
+        if ($answer === "") {
+            return $this->evaluateCaptcha($state, $body);
+        }
+
+        if ($this->getRecaptcha()->verify($answer)) {
+            return ilAuthGuardVerificationResult::passed();
+        }
+
+        return $this->fail(ilAuthGuardVerificationResult::REASON_RECAPTCHA);
     }
 
     /**
@@ -226,24 +277,15 @@ class ilAuthGuardFormProtection
         // No phrase means no image was ever requested: the visitor runs
         // JavaScript and submitted before the widget had finished.
         if (trim($expected) === "") {
-            return $this->fail(
-                ilAuthGuardVerificationResult::REASON_CAPTCHA,
-                "pow_missing"
-            );
+            return $this->fail(ilAuthGuardVerificationResult::REASON_CAPTCHA);
         }
 
         if (trim($submitted) === "") {
-            return $this->fail(
-                ilAuthGuardVerificationResult::REASON_CAPTCHA,
-                "captcha_required"
-            );
+            return $this->fail(ilAuthGuardVerificationResult::REASON_CAPTCHA);
         }
 
         if (!ilAuthGuardHelper::isValid($submitted, $expected)) {
-            return $this->fail(
-                ilAuthGuardVerificationResult::REASON_CAPTCHA,
-                "captcha_validation_failed"
-            );
+            return $this->fail(ilAuthGuardVerificationResult::REASON_CAPTCHA);
         }
 
         return ilAuthGuardVerificationResult::passed();
@@ -262,13 +304,61 @@ class ilAuthGuardFormProtection
     }
 
     /**
+     * Every rejection shows the visitor the same text, so a script that
+     * retries cannot learn which check it failed. The reason goes only to
+     * the log and to the caller.
+     *
      * @param string $reason
-     * @param string $lang_key
      * @return ilAuthGuardVerificationResult
      */
-    private function fail(string $reason, string $lang_key): ilAuthGuardVerificationResult
+    private function fail(string $reason): ilAuthGuardVerificationResult
     {
-        return ilAuthGuardVerificationResult::failed($reason, $this->translate($lang_key));
+        return ilAuthGuardVerificationResult::failed($reason, $this->translate("security_check_failed"));
+    }
+
+    /**
+     * The challenge provider in force: reCAPTCHA only when its keys are
+     * complete, otherwise Altcha.
+     *
+     * @return string one of the ilAuthGuardSettings::PROVIDER_ constants
+     */
+    private function resolveProvider(): string
+    {
+        $settings = $this->getSettings();
+        $provider = $settings->getEffectiveProvider();
+
+        if ($provider !== $settings->getProvider()) {
+            $this->getLogger()->error(
+                "AuthGuard: Google reCAPTCHA is selected but its keys are incomplete; "
+                . "the Altcha check is used instead."
+            );
+        }
+
+        return $provider;
+    }
+
+    /**
+     * @return ilAuthGuardSettings
+     */
+    private function getSettings(): ilAuthGuardSettings
+    {
+        if ($this->settings === null) {
+            $this->settings = new ilAuthGuardSettings();
+        }
+
+        return $this->settings;
+    }
+
+    /**
+     * @return ilAuthGuardRecaptcha
+     */
+    private function getRecaptcha(): ilAuthGuardRecaptcha
+    {
+        if ($this->recaptcha === null) {
+            $this->recaptcha = new ilAuthGuardRecaptcha($this->getSettings(), $this->getLogger());
+        }
+
+        return $this->recaptcha;
     }
 
     /**
@@ -378,9 +468,26 @@ class ilAuthGuardFormProtection
         $variables["CAPTCHA_INFO"] = $plugin->txt("captcha_info");
         $variables["WIDGET_LABEL"] = $plugin->txt("widget_label");
 
-        foreach ($variables as $name => $value) {
-            $tpl->setVariable($name, htmlspecialchars($value, ENT_QUOTES, "UTF-8"));
+        $provider = $variables["PROVIDER"] ?? ilAuthGuardSettings::PROVIDER_ALTCHA;
+        unset($variables["PROVIDER"]);
+        if ($provider !== ilAuthGuardSettings::PROVIDER_RECAPTCHA) {
+            $provider = ilAuthGuardSettings::PROVIDER_ALTCHA;
         }
+
+        // A template block is output once any of its variables is set, so
+        // only the selected provider's block gets values.
+        $other_block = self::BLOCK_VARIABLES[$provider === ilAuthGuardSettings::PROVIDER_RECAPTCHA
+            ? ilAuthGuardSettings::PROVIDER_ALTCHA
+            : ilAuthGuardSettings::PROVIDER_RECAPTCHA];
+
+        foreach ($variables as $name => $value) {
+            if (!in_array($name, $other_block, true)) {
+                $tpl->setVariable($name, htmlspecialchars($value, ENT_QUOTES, "UTF-8"));
+            }
+        }
+
+        $tpl->setCurrentBlock($provider);
+        $tpl->parseCurrentBlock();
 
         return $tpl->get();
     }

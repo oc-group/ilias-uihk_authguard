@@ -24,16 +24,27 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 
 require_once __DIR__ . "/ArraySessionStore.php";
+require_once __DIR__ . "/SettingsFixture.php";
 
 class FormProtectionTest extends TestCase
 {
+    use SettingsFixture;
+
     private const DWELL = 10.0;
+
+    private const GENERIC = "t:security_check_failed";
+
+    private const SITE_KEY = "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
     private ArraySessionStore $store;
 
     private \ilAuthGuardProofOfWork $pow;
 
     private \ilLogger $logger;
+
+    private \ilAuthGuardSettings $settings;
+
+    private \ilAuthGuardRecaptcha $recaptcha;
 
     /** @var object{clock: float, markup_vars: array<string, string>} */
     private object $facade_probe;
@@ -45,6 +56,8 @@ class FormProtectionTest extends TestCase
         $this->store = new ArraySessionStore();
         $this->pow = new \ilAuthGuardProofOfWork(10, 1, 5);
         $this->logger = $this->createMock(\ilLogger::class);
+        $this->settings = $this->makeSettings();
+        $this->recaptcha = $this->createMock(\ilAuthGuardRecaptcha::class);
 
         $this->facade_probe = new class () {
             public float $clock = 1000.0;
@@ -58,15 +71,19 @@ class FormProtectionTest extends TestCase
             $this->store,
             $this->pow,
             $this->logger,
-            $probe
+            $probe,
+            $this->settings,
+            $this->recaptcha
         ) extends \ilAuthGuardFormProtection {
             public function __construct(
                 \ilAuthGuardSessionStore $store,
                 \ilAuthGuardProofOfWork $pow,
                 \ilLogger $logger,
-                private readonly object $probe
+                private readonly object $probe,
+                \ilAuthGuardSettings $settings,
+                \ilAuthGuardRecaptcha $recaptcha
             ) {
-                parent::__construct($store, $pow, $logger);
+                parent::__construct($store, $pow, $logger, $settings, $recaptcha);
             }
 
             protected function now(): float
@@ -175,6 +192,8 @@ class FormProtectionTest extends TestCase
         $this->assertSame("url/challenge/contact", $vars["CHALLENGE_URL"]);
         $this->assertSame("url/showImage/contact", $vars["IMAGE_URL"]);
         $this->assertSame("asset/js/authguard-widget.js", $vars["WIDGET_SCRIPT_URL"]);
+        $this->assertSame("altcha", $vars["PROVIDER"]);
+        $this->assertSame("", $vars["RECAPTCHA_SITE_KEY"]);
     }
 
     public function testRenderRejectsAMalformedFormId(): void
@@ -206,7 +225,7 @@ class FormProtectionTest extends TestCase
 
         $this->assertFalse($result->isPassed());
         $this->assertSame(\ilAuthGuardVerificationResult::REASON_MISSING_STATE, $result->getReason());
-        $this->assertSame("t:form_state_missing", $result->getMessage());
+        $this->assertSame(self::GENERIC, $result->getMessage());
     }
 
     public function testTooFastSubmitFailsWithTiming(): void
@@ -217,7 +236,7 @@ class FormProtectionTest extends TestCase
         $result = $this->facade->verify("f", $this->request($this->solvedPowBody()));
 
         $this->assertSame(\ilAuthGuardVerificationResult::REASON_TIMING, $result->getReason());
-        $this->assertSame("t:submit_too_fast", $result->getMessage());
+        $this->assertSame(self::GENERIC, $result->getMessage());
     }
 
     public function testSubmitAtTheThresholdIsNotTooFast(): void
@@ -248,7 +267,7 @@ class FormProtectionTest extends TestCase
         $result = $this->facade->verify("f", $this->request($body));
 
         $this->assertSame(\ilAuthGuardVerificationResult::REASON_HONEYPOT, $result->getReason());
-        $this->assertSame("t:security_check_failed", $result->getMessage());
+        $this->assertSame(self::GENERIC, $result->getMessage());
     }
 
     public function testHoneypotIsCheckedBeforeProofOfWork(): void
@@ -283,7 +302,7 @@ class FormProtectionTest extends TestCase
         ]));
 
         $this->assertSame(\ilAuthGuardVerificationResult::REASON_POW, $result->getReason());
-        $this->assertSame("t:pow_failed", $result->getMessage());
+        $this->assertSame(self::GENERIC, $result->getMessage());
     }
 
     public function testInvalidProofOfWorkDoesNotFallBackToTheCaptcha(): void
@@ -319,7 +338,7 @@ class FormProtectionTest extends TestCase
         $result = $this->facade->verify("f", $this->request([]));
 
         $this->assertSame(\ilAuthGuardVerificationResult::REASON_CAPTCHA, $result->getReason());
-        $this->assertSame("t:captcha_required", $result->getMessage());
+        $this->assertSame(self::GENERIC, $result->getMessage());
     }
 
     public function testMissingProofOfWorkWithoutAnImageSaysTheCheckWasNotFinished(): void
@@ -329,7 +348,7 @@ class FormProtectionTest extends TestCase
         $result = $this->facade->verify("f", $this->request([]));
 
         $this->assertSame(\ilAuthGuardVerificationResult::REASON_CAPTCHA, $result->getReason());
-        $this->assertSame("t:pow_missing", $result->getMessage());
+        $this->assertSame(self::GENERIC, $result->getMessage());
     }
 
     public function testCorrectCaptchaPassesWithoutProofOfWork(): void
@@ -354,7 +373,7 @@ class FormProtectionTest extends TestCase
         ]));
 
         $this->assertSame(\ilAuthGuardVerificationResult::REASON_CAPTCHA, $result->getReason());
-        $this->assertSame("t:captcha_validation_failed", $result->getMessage());
+        $this->assertSame(self::GENERIC, $result->getMessage());
     }
 
     public function testCaptchaWithoutAnIssuedPhraseFails(): void
@@ -365,7 +384,7 @@ class FormProtectionTest extends TestCase
             \ilAuthGuardFormProtection::FIELD_CAPTCHA => "abc12",
         ]));
 
-        $this->assertSame("t:pow_missing", $result->getMessage());
+        $this->assertSame(self::GENERIC, $result->getMessage());
     }
 
     public function testArrayValuedFieldsFailClosed(): void
@@ -453,6 +472,259 @@ class FormProtectionTest extends TestCase
         $body = $this->solvedPowBody("form-b");
         $result = $this->facade->verify("form-b", $this->request($body));
 
+        $this->assertTrue($result->isPassed());
+    }
+
+    private function useRecaptcha(): void
+    {
+        $this->settings->setProvider(\ilAuthGuardSettings::PROVIDER_RECAPTCHA);
+        $this->settings->setRecaptchaSiteKey(self::SITE_KEY);
+        $this->settings->setRecaptchaSecretKey("6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe");
+    }
+
+    public function testEveryReasonShowsTheSameMessage(): void
+    {
+        $messages = [];
+
+        $messages[] = $this->facade->verify("a", $this->request([]))->getMessage();
+
+        $this->facade->render("b");
+        $this->facade_probe->clock += 1.0;
+        $messages[] = $this->facade->verify("b", $this->request([]))->getMessage();
+
+        $name = $this->renderAndWait("c");
+        $messages[] = $this->facade->verify("c", $this->request([$name => "x"]))->getMessage();
+
+        $this->renderAndWait("d");
+        $messages[] = $this->facade->verify("d", $this->request([
+            \ilAuthGuardFormProtection::FIELD_POW => "garbage",
+        ]))->getMessage();
+
+        $this->renderAndWait("e");
+        $messages[] = $this->facade->verify("e", $this->request([]))->getMessage();
+
+        $this->renderAndWait("f");
+        $this->state("f")->set(\ilAuthGuardFormState::FIELD_PHRASE, "abc12");
+        $messages[] = $this->facade->verify("f", $this->request([]))->getMessage();
+        $this->renderAndWait("f");
+        $this->state("f")->set(\ilAuthGuardFormState::FIELD_PHRASE, "abc12");
+        $messages[] = $this->facade->verify("f", $this->request([
+            \ilAuthGuardFormProtection::FIELD_CAPTCHA => "zzz",
+        ]))->getMessage();
+
+        $this->useRecaptcha();
+        $this->recaptcha->method("verify")->willReturn(false);
+        $this->renderAndWait("g");
+        $messages[] = $this->facade->verify("g", $this->request([
+            \ilAuthGuardFormProtection::FIELD_RECAPTCHA => "answer",
+        ]))->getMessage();
+
+        $this->assertCount(8, $messages);
+        $this->assertSame([self::GENERIC], array_values(array_unique($messages)));
+    }
+
+    public function testEveryReasonStaysDistinctInTheResult(): void
+    {
+        $reasons = [];
+        $reasons[] = $this->facade->verify("a", $this->request([]))->getReason();
+
+        $this->facade->render("b");
+        $this->facade_probe->clock += 1.0;
+        $reasons[] = $this->facade->verify("b", $this->request([]))->getReason();
+
+        $name = $this->renderAndWait("c");
+        $reasons[] = $this->facade->verify("c", $this->request([$name => "x"]))->getReason();
+
+        $this->renderAndWait("d");
+        $reasons[] = $this->facade->verify("d", $this->request([
+            \ilAuthGuardFormProtection::FIELD_POW => "garbage",
+        ]))->getReason();
+
+        $this->renderAndWait("e");
+        $reasons[] = $this->facade->verify("e", $this->request([]))->getReason();
+
+        $this->assertSame(["missing_state", "timing", "honeypot", "pow", "captcha"], $reasons);
+    }
+
+    public function testRecaptchaProviderHandsTheFragmentItsSiteKey(): void
+    {
+        $this->useRecaptcha();
+
+        $this->facade->render("contact");
+        $vars = $this->facade_probe->markup_vars;
+
+        $this->assertSame("recaptcha", $vars["PROVIDER"]);
+        $this->assertSame(self::SITE_KEY, $vars["RECAPTCHA_SITE_KEY"]);
+        $this->assertSame("asset/js/authguard-recaptcha.js", $vars["RECAPTCHA_SCRIPT_URL"]);
+    }
+
+    public function testRecaptchaProviderStartsNoProofOfWork(): void
+    {
+        $this->useRecaptcha();
+
+        $this->facade->render("contact");
+
+        $this->assertNull($this->state("contact")->get(\ilAuthGuardFormState::FIELD_POW_SECRET));
+        $this->assertNotNull($this->state("contact")->get(\ilAuthGuardFormState::FIELD_RENDERED_AT));
+    }
+
+    public function testAltchaProviderStartsProofOfWorkAndNoSiteKey(): void
+    {
+        $this->facade->render("contact");
+
+        $this->assertNotNull($this->state("contact")->get(\ilAuthGuardFormState::FIELD_POW_SECRET));
+        $this->assertSame("", $this->facade_probe->markup_vars["RECAPTCHA_SITE_KEY"]);
+    }
+
+    public function testConfirmedRecaptchaAnswerPasses(): void
+    {
+        $this->useRecaptcha();
+        $name = $this->renderAndWait();
+        $this->recaptcha->expects($this->once())->method("verify")->with("the-answer")->willReturn(true);
+
+        $result = $this->facade->verify("f", $this->request([
+            \ilAuthGuardFormProtection::FIELD_RECAPTCHA => "the-answer",
+            $name => "",
+        ]));
+
+        $this->assertTrue($result->isPassed());
+        $this->assertSame("", $result->getMessage());
+    }
+
+    public function testRejectedRecaptchaAnswerFailsWithItsReason(): void
+    {
+        $this->useRecaptcha();
+        $this->renderAndWait();
+        $this->recaptcha->method("verify")->willReturn(false);
+
+        $result = $this->facade->verify("f", $this->request([
+            \ilAuthGuardFormProtection::FIELD_RECAPTCHA => "the-answer",
+        ]));
+
+        $this->assertSame(\ilAuthGuardVerificationResult::REASON_RECAPTCHA, $result->getReason());
+        $this->assertSame(self::GENERIC, $result->getMessage());
+    }
+
+    public function testFailedGoogleCheckIsLoggedAsARejectedSubmit(): void
+    {
+        $this->useRecaptcha();
+        $this->renderAndWait("contact");
+        $this->recaptcha->method("verify")->willReturn(false);
+        $this->logger->expects($this->once())
+            ->method("warning")
+            ->with($this->callback(
+                static fn (string $message): bool => str_contains($message, "contact")
+                    && str_contains($message, "reason: recaptcha")
+            ));
+
+        $this->facade->verify("contact", $this->request([
+            \ilAuthGuardFormProtection::FIELD_RECAPTCHA => "the-answer",
+        ]));
+    }
+
+    public function testPresentRecaptchaAnswerNeverFallsBackToTheImageCaptcha(): void
+    {
+        $this->useRecaptcha();
+        $this->renderAndWait();
+        $this->state("f")->set(\ilAuthGuardFormState::FIELD_PHRASE, "abc12");
+        $this->recaptcha->method("verify")->willReturn(false);
+
+        $result = $this->facade->verify("f", $this->request([
+            \ilAuthGuardFormProtection::FIELD_RECAPTCHA => "the-answer",
+            \ilAuthGuardFormProtection::FIELD_CAPTCHA => "abc12",
+        ]));
+
+        $this->assertSame(\ilAuthGuardVerificationResult::REASON_RECAPTCHA, $result->getReason());
+    }
+
+    public function testRecaptchaProviderKeepsTheImageCaptchaForVisitorsWithoutJavaScript(): void
+    {
+        $this->useRecaptcha();
+        $this->renderAndWait();
+        $this->state("f")->set(\ilAuthGuardFormState::FIELD_PHRASE, "abc12");
+        $this->recaptcha->expects($this->never())->method("verify");
+
+        $result = $this->facade->verify("f", $this->request([
+            \ilAuthGuardFormProtection::FIELD_RECAPTCHA => "",
+            \ilAuthGuardFormProtection::FIELD_CAPTCHA => "abc12",
+        ]));
+
+        $this->assertTrue($result->isPassed());
+    }
+
+    public function testRecaptchaProviderRejectsAnEmptySubmit(): void
+    {
+        $this->useRecaptcha();
+        $this->renderAndWait();
+        $this->recaptcha->expects($this->never())->method("verify");
+
+        $result = $this->facade->verify("f", $this->request([]));
+
+        $this->assertSame(\ilAuthGuardVerificationResult::REASON_CAPTCHA, $result->getReason());
+    }
+
+    public function testRecaptchaIsNotAskedBeforeTimingAndHoneypotPass(): void
+    {
+        $this->useRecaptcha();
+        $this->recaptcha->expects($this->never())->method("verify");
+
+        $this->facade->render("fast");
+        $this->facade_probe->clock += 1.0;
+        $fast = $this->facade->verify("fast", $this->request([
+            \ilAuthGuardFormProtection::FIELD_RECAPTCHA => "the-answer",
+        ]));
+
+        $name = $this->renderAndWait("trap");
+        $trap = $this->facade->verify("trap", $this->request([
+            \ilAuthGuardFormProtection::FIELD_RECAPTCHA => "the-answer",
+            $name => "x",
+        ]));
+
+        $missing = $this->facade->verify("never", $this->request([
+            \ilAuthGuardFormProtection::FIELD_RECAPTCHA => "the-answer",
+        ]));
+
+        $this->assertSame(\ilAuthGuardVerificationResult::REASON_TIMING, $fast->getReason());
+        $this->assertSame(\ilAuthGuardVerificationResult::REASON_HONEYPOT, $trap->getReason());
+        $this->assertSame(\ilAuthGuardVerificationResult::REASON_MISSING_STATE, $missing->getReason());
+    }
+
+    public function testRecaptchaProviderIgnoresAProofOfWorkPayload(): void
+    {
+        $this->useRecaptcha();
+        $this->renderAndWait();
+        $this->recaptcha->expects($this->never())->method("verify");
+
+        $result = $this->facade->verify("f", $this->request([
+            \ilAuthGuardFormProtection::FIELD_POW => "garbage",
+        ]));
+
+        $this->assertSame(\ilAuthGuardVerificationResult::REASON_CAPTCHA, $result->getReason());
+    }
+
+    public function testAltchaProviderIgnoresARecaptchaAnswer(): void
+    {
+        $this->renderAndWait();
+        $this->recaptcha->expects($this->never())->method("verify");
+        $body = $this->solvedPowBody() + [\ilAuthGuardFormProtection::FIELD_RECAPTCHA => "the-answer"];
+
+        $result = $this->facade->verify("f", $this->request($body));
+
+        $this->assertTrue($result->isPassed());
+    }
+
+    public function testRecaptchaWithIncompleteKeysUsesAltchaAndSaysSo(): void
+    {
+        $this->settings->setProvider(\ilAuthGuardSettings::PROVIDER_RECAPTCHA);
+        $this->logger->expects($this->atLeastOnce())
+            ->method("error")
+            ->with($this->stringContains("keys are incomplete"));
+        $this->recaptcha->expects($this->never())->method("verify");
+
+        $this->renderAndWait();
+        $result = $this->facade->verify("f", $this->request($this->solvedPowBody()));
+
+        $this->assertSame("altcha", $this->facade_probe->markup_vars["PROVIDER"]);
         $this->assertTrue($result->isPassed());
     }
 
