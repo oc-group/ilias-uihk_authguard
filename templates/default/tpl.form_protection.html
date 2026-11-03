@@ -2,8 +2,14 @@
 	<div class="ilAuthGuardTrap" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
 		<input type="text" name="{HONEYPOT_NAME}" value="" tabindex="-1" autocomplete="off" aria-hidden="true" />
 	</div>
+	<!-- BEGIN altcha -->
 	<altcha-widget challenge="{CHALLENGE_URL}" name="{POW_FIELD}" auto="onload"></altcha-widget>
 	<script type="module" src="{WIDGET_SCRIPT_URL}"></script>
+	<!-- END altcha -->
+	<!-- BEGIN recaptcha -->
+	<div class="ilAuthGuardRecaptcha" data-authguard-sitekey="{RECAPTCHA_SITE_KEY}"></div>
+	<script type="module" src="{RECAPTCHA_SCRIPT_URL}"></script>
+	<!-- END recaptcha -->
 	<noscript>
 		<div class="ilAuthGuardWidget">
 			<svg class="ilAuthGuardShield" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" focusable="false">

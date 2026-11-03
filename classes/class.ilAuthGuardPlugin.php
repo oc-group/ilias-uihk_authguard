@@ -107,6 +107,24 @@ class ilAuthGuardPlugin extends ilUserInterfaceHookPlugin
     }
 
     /**
+     * Removes the stored settings and, with the plugin's private storage
+     * directory, the encryption key of the secret.
+     *
+     * @return void
+     */
+    protected function afterUninstall(): void
+    {
+        global $DIC;
+
+        (new ilAuthGuardSettings())->deleteAll();
+
+        $storage = $DIC->filesystem()->storage();
+        if ($storage->hasDir(self::PLUGIN_ID)) {
+            $storage->deleteDir(self::PLUGIN_ID);
+        }
+    }
+
+    /**
      * Returns the shared plugin instance, so the constructor does not run
      * once per caller.
      *

@@ -47,9 +47,10 @@ class VerificationResultTest extends TestCase
             \ilAuthGuardVerificationResult::REASON_HONEYPOT,
             \ilAuthGuardVerificationResult::REASON_POW,
             \ilAuthGuardVerificationResult::REASON_CAPTCHA,
+            \ilAuthGuardVerificationResult::REASON_RECAPTCHA,
             \ilAuthGuardVerificationResult::REASON_MISSING_STATE,
         ];
 
-        $this->assertCount(6, array_unique($reasons));
+        $this->assertCount(7, array_unique($reasons));
     }
 }

@@ -13,8 +13,9 @@
 declare(strict_types=1);
 
 /**
- * Outcome of a form verification. The message is translated and safe to
- * show to the visitor.
+ * Outcome of a form verification. The message is translated, safe to show
+ * to the visitor and the same for every reason; only the reason tells the
+ * checks apart.
  *
  * @api
  */
@@ -34,6 +35,9 @@ class ilAuthGuardVerificationResult
 
     /** @var string */
     public const REASON_CAPTCHA = "captcha";
+
+    /** @var string */
+    public const REASON_RECAPTCHA = "recaptcha";
 
     /** @var string */
     public const REASON_MISSING_STATE = "missing_state";
