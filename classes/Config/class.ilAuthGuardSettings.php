@@ -25,32 +25,17 @@ final class ilAuthGuardSettings
     /** @var string ilSetting module every key below is stored under */
     public const MODULE = "plugin_" . ilAuthGuardPlugin::PLUGIN_ID;
 
-    /** @var string proof-of-work, no external service */
-    public const PROVIDER_ALTCHA = "altcha";
-
-    /** @var string Google reCAPTCHA v2 checkbox */
-    public const PROVIDER_RECAPTCHA = "recaptcha";
-
-    /** @var string shape of a Google site key and of a Google secret key */
-    public const GOOGLE_KEY_PATTERN = "/^[A-Za-z0-9_-]{20,100}$/D";
-
     /** @var string form field a validation error belongs to */
     public const FIELD_PROVIDER = "provider";
 
-    /** @var string form field a validation error belongs to */
-    public const FIELD_SITE_KEY = "recaptcha_site_key";
+    /** @var string form field of the unreachable-vendor choice */
+    public const FIELD_ACCEPT_WHEN_UNREACHABLE = "accept_when_unreachable";
 
-    /** @var string form field a validation error belongs to */
-    public const FIELD_SECRET_KEY = "recaptcha_secret_key";
-
-    /** @var string "altcha" or "recaptcha" */
+    /** @var string id of the selected provider */
     private const KEY_PROVIDER = "provider";
 
-    /** @var string public key of the reCAPTCHA site, plaintext */
-    private const KEY_RECAPTCHA_SITE_KEY = "recaptcha_site_key";
-
-    /** @var string private key of the reCAPTCHA site, "v1:" encrypted */
-    private const KEY_RECAPTCHA_SECRET_KEY = "recaptcha_secret_key";
+    /** @var string "1" when a submit is accepted while the vendor cannot be reached */
+    private const KEY_ACCEPT_WHEN_UNREACHABLE = "accept_when_unreachable";
 
     /** @var string stored-format prefix of an encrypted value */
     private const PREFIX = "v1:";
@@ -96,25 +81,26 @@ final class ilAuthGuardSettings
     }
 
     /**
-     * The stored choice, whatever the state of the keys.
+     * The stored choice, whatever the state of its settings.
      *
-     * @return string one of the PROVIDER_ constants
+     * @return string the id of a provider of the registry, Altcha when the
+     *                stored value names none
      */
     public function getProvider(): string
     {
-        $stored = $this->getString(self::KEY_PROVIDER, self::PROVIDER_ALTCHA);
+        $stored = $this->getString(self::KEY_PROVIDER, ilAuthGuardProviderRegistry::DEFAULT_ID);
 
-        return $stored === self::PROVIDER_RECAPTCHA ? self::PROVIDER_RECAPTCHA : self::PROVIDER_ALTCHA;
+        return ilAuthGuardProviderRegistry::isKnownId($stored) ? $stored : ilAuthGuardProviderRegistry::DEFAULT_ID;
     }
 
     /**
-     * @param string $provider one of the PROVIDER_ constants
-     * @throws InvalidArgumentException when the value is neither
+     * @param string $provider the id of a provider of the registry
+     * @throws InvalidArgumentException when the value is none
      * @return void
      */
     public function setProvider(string $provider): void
     {
-        if ($provider !== self::PROVIDER_ALTCHA && $provider !== self::PROVIDER_RECAPTCHA) {
+        if (!ilAuthGuardProviderRegistry::isKnownId($provider)) {
             throw new InvalidArgumentException("Unknown challenge provider.");
         }
 
@@ -122,122 +108,114 @@ final class ilAuthGuardSettings
     }
 
     /**
-     * The provider the checks actually use: reCAPTCHA only when both of its
-     * keys are stored, Altcha otherwise.
+     * Whether a submit is accepted when an external provider's vendor
+     * cannot be reached. Off unless stored: the safe default is to reject.
      *
-     * @return string one of the PROVIDER_ constants
+     * @return bool
+     */
+    public function isAcceptWhenUnreachable(): bool
+    {
+        return $this->getString(self::KEY_ACCEPT_WHEN_UNREACHABLE, "0") === "1";
+    }
+
+    /**
+     * @param bool $accept
+     * @return void
+     */
+    public function setAcceptWhenUnreachable(bool $accept): void
+    {
+        $this->setString(self::KEY_ACCEPT_WHEN_UNREACHABLE, $accept ? "1" : "0");
+    }
+
+    /**
+     * The provider the checks actually use: the selected one only when its
+     * settings are complete, Altcha otherwise.
+     *
+     * @return string the id of a provider of the registry
      */
     public function getEffectiveProvider(): string
     {
-        if ($this->getProvider() === self::PROVIDER_RECAPTCHA && $this->isRecaptchaConfigured()) {
-            return self::PROVIDER_RECAPTCHA;
-        }
-
-        return self::PROVIDER_ALTCHA;
+        return ilAuthGuardProviderRegistry::createDefault()->resolve($this)->getId();
     }
 
     /**
+     * A setting of a provider, plaintext.
+     *
+     * @param string $provider provider id
+     * @param string $field field name, see ilAuthGuardProviderField
+     * @param string $default
      * @return string
      */
-    public function getRecaptchaSiteKey(): string
+    public function getProviderValue(string $provider, string $field, string $default = ""): string
     {
-        return $this->getString(self::KEY_RECAPTCHA_SITE_KEY, "");
+        return $this->getString($this->providerKey($provider, $field), $default);
     }
 
     /**
-     * @param string $site_key
+     * @param string $provider provider id
+     * @param string $field field name
+     * @param string $value
      * @return void
      */
-    public function setRecaptchaSiteKey(string $site_key): void
+    public function setProviderValue(string $provider, string $field, string $value): void
     {
-        $this->setString(self::KEY_RECAPTCHA_SITE_KEY, $site_key);
+        $this->setString($this->providerKey($provider, $field), $value);
     }
 
     /**
-     * Whether a secret key is stored, without decrypting it.
+     * Whether a secret is stored, without decrypting it.
      *
+     * @param string $provider provider id
+     * @param string $field field name
      * @return bool
      */
-    public function hasRecaptchaSecretKey(): bool
+    public function hasProviderSecret(string $provider, string $field): bool
     {
-        return $this->getString(self::KEY_RECAPTCHA_SECRET_KEY, "") !== "";
+        return $this->getString($this->providerKey($provider, $field), "") !== "";
     }
 
     /**
+     * @param string $provider provider id
+     * @param string $field field name
      * @throws RuntimeException when the stored value cannot be decrypted
      * @return string empty when none is stored
      */
-    public function getRecaptchaSecretKey(): string
+    public function getProviderSecret(string $provider, string $field): string
     {
-        return $this->decrypt($this->getString(self::KEY_RECAPTCHA_SECRET_KEY, ""));
+        return $this->decrypt($this->getString($this->providerKey($provider, $field), ""));
     }
 
     /**
-     * Encrypts and stores the secret key; an empty value is ignored, so a
-     * form left empty keeps the stored key.
+     * Encrypts and stores a secret; an empty value is ignored, so a form
+     * left empty keeps the stored secret.
      *
-     * @param string $secret_key
+     * @param string $provider provider id
+     * @param string $field field name
+     * @param string $secret
      * @throws RuntimeException when the value cannot be encrypted
      * @return void
      */
-    public function setRecaptchaSecretKey(string $secret_key): void
+    public function setProviderSecret(string $provider, string $field, string $secret): void
     {
-        if ($secret_key === "") {
+        if ($secret === "") {
             return;
         }
 
-        $this->setString(self::KEY_RECAPTCHA_SECRET_KEY, $this->encrypt($secret_key));
+        $this->setString($this->providerKey($provider, $field), $this->encrypt($secret));
     }
 
     /**
-     * True when both keys are stored. Looks at the stored values only: no
-     * decryption, no key file access.
+     * The storage key of a provider's setting. For reCAPTCHA v2 this is
+     * "recaptcha_site_key" and "recaptcha_secret_key", the keys of the
+     * versions before providers were pluggable.
      *
-     * @return bool
+     * @param string $provider
+     * @param string $field
+     * @return string
      */
-    public function isRecaptchaConfigured(): bool
+    private function providerKey(string $provider, string $field): string
     {
-        return $this->getRecaptchaSiteKey() !== "" && $this->hasRecaptchaSecretKey();
-    }
-
-    /**
-     * Checks what a configuration form submits. Choosing reCAPTCHA needs
-     * both keys, each in the shape Google issues; the secret key may be
-     * left empty only when one is already stored.
-     *
-     * @param string $provider the submitted choice
-     * @param string $site_key the submitted site key
-     * @param string $secret_key the submitted secret key, empty keeps the old
-     * @param bool $secret_stored whether a secret key is stored already
-     * @return array<string, string> lang key by form field, empty when valid
-     */
-    public static function validate(
-        string $provider,
-        string $site_key,
-        string $secret_key,
-        bool $secret_stored
-    ): array {
-        $errors = [];
-
-        if ($provider !== self::PROVIDER_ALTCHA && $provider !== self::PROVIDER_RECAPTCHA) {
-            return [self::FIELD_PROVIDER => "cfg_err_provider"];
-        }
-
-        if ($provider === self::PROVIDER_ALTCHA) {
-            return $errors;
-        }
-
-        if (preg_match(self::GOOGLE_KEY_PATTERN, $site_key) !== 1) {
-            $errors[self::FIELD_SITE_KEY] = "cfg_err_site_key";
-        }
-
-        if ($secret_key === "" && !$secret_stored) {
-            $errors[self::FIELD_SECRET_KEY] = "cfg_err_secret_key";
-        } elseif ($secret_key !== "" && preg_match(self::GOOGLE_KEY_PATTERN, $secret_key) !== 1) {
-            $errors[self::FIELD_SECRET_KEY] = "cfg_err_secret_key";
-        }
-
-        return $errors;
+        return $provider . "_" . $field;
     }
 
     /**

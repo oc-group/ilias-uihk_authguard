@@ -60,7 +60,7 @@ class ilAuthGuardProofOfWork
         int $counter_min = self::COUNTER_MIN,
         int $counter_max = self::COUNTER_MAX
     ) {
-        require_once __DIR__ . "/../vendor/autoload.php";
+        require_once __DIR__ . "/../../vendor/autoload.php";
 
         $this->cost = $cost;
         $this->counter_min = $counter_min;

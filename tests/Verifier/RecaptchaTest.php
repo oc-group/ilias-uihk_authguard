@@ -16,7 +16,7 @@ namespace AuthGuard\Tests;
 
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . "/SettingsFixture.php";
+require_once __DIR__ . "/../SettingsFixture.php";
 
 class RecaptchaTest extends TestCase
 {
@@ -36,7 +36,7 @@ class RecaptchaTest extends TestCase
     protected function setUp(): void
     {
         $settings = $this->makeSettings();
-        $settings->setRecaptchaSecretKey(self::SECRET_KEY);
+        $settings->setProviderSecret("recaptcha", "secret_key", self::SECRET_KEY);
 
         $this->logger = $this->createMock(\ilLogger::class);
         $this->transport = new class () {
