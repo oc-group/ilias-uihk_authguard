@@ -82,9 +82,9 @@ final class ilAuthGuardPrivacyDrafts
             $found = true;
             $content[] = $this->ui->legacy()->content(
                 "<h4>" . $this->escape($this->txt("cfg_provider_" . $provider->getId())) . "</h4>"
-                . '<textarea class="form-control" rows="18" readonly="readonly" onfocus="this.select()"'
+                . '<pre class="ilAuthGuardDraft" role="region" tabindex="0"'
                 . ' aria-label="' . $this->escape($this->txt("cfg_privacy_draft_label")) . '">'
-                . $this->escape($this->text->getDraft($facts)) . "</textarea>"
+                . $this->escape($this->text->getDraft($facts)) . "</pre>"
                 . "<h5>" . $this->escape($this->txt("cfg_privacy_checks_title")) . "</h5>"
             );
             $content[] = $this->ui->listing()->unordered($this->text->getChecks($facts));

@@ -486,7 +486,11 @@ class PrivacyTextTest extends TestCase
             );
         }
         $this->assertStringNotContainsString("cfg_provider_altcha", $html);
-        $this->assertSame(5, substr_count($html, "<textarea"));
+        $this->assertSame(5, substr_count($html, '<pre class="ilAuthGuardDraft" role="region" tabindex="0"'));
+        $this->assertSame(5, substr_count($html, ' aria-label="T[cfg_privacy_draft_label]">'));
+        $this->assertSame(5, substr_count($html, "</pre>"));
+        $this->assertStringNotContainsString("<textarea", $html);
+        $this->assertStringNotContainsString("onfocus", $html);
         $this->assertSame(5, substr_count($html, "<h5>T[cfg_privacy_checks_title]</h5>"));
     }
 

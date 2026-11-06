@@ -1,0 +1,20 @@
+/*
+ * This file is part of AuthGuard UI Plugin for ILIAS,
+ * developed by OC Open Consulting to block automated self-registration
+ * submissions. Styles the privacy policy drafts on the configuration page.
+ */
+
+.ilAuthGuardDraft {
+    max-height: 24rem;
+    overflow: auto;
+    margin: 0 0 1rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d3d3d3;
+    border-radius: 4px;
+    background: #f8f9fa;
+    color: inherit;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    user-select: all;
+}

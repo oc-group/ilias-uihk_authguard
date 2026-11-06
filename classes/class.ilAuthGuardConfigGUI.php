@@ -257,6 +257,7 @@ class ilAuthGuardConfigGUI extends ilPluginConfigGUI implements ilCtrlSecurityIn
      */
     private function show(Standard $form): void
     {
+        $this->tpl->addCss($this->plugin->getRelativeDirectory() . "/css/privacy.css");
         $this->tpl->setContent($this->ui_renderer->render(
             [$this->createChecklist(), $form, ...$this->privacy_drafts->createComponents()]
         ));
