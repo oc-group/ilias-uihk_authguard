@@ -31,28 +31,16 @@ class ilAuthGuardFormProtection
     /** @var string POST field of the image CAPTCHA fallback */
     public const FIELD_CAPTCHA = "captcha_code";
 
-    /** @var string POST field the Google reCAPTCHA widget fills */
+    /** @var string POST field the Google reCAPTCHA v2 widget fills */
     public const FIELD_RECAPTCHA = "g-recaptcha-response";
 
     /** @var float minimum seconds between render and submit; may be fractional */
     public const MIN_SUBMIT_INTERVAL_SECONDS = 2.0;
 
-    /** @var string */
-    private const WIDGET_SCRIPT = "/js/authguard-widget.js";
-
-    /** @var string */
-    private const RECAPTCHA_SCRIPT = "/js/authguard-recaptcha.js";
-
-    /** @var array<string, string[]> template variables that belong to a provider's block */
-    private const BLOCK_VARIABLES = [
-        ilAuthGuardSettings::PROVIDER_ALTCHA => ["CHALLENGE_URL", "POW_FIELD", "WIDGET_SCRIPT_URL"],
-        ilAuthGuardSettings::PROVIDER_RECAPTCHA => ["RECAPTCHA_SITE_KEY", "RECAPTCHA_SCRIPT_URL"],
-    ];
-
     /** @var ilAuthGuardSessionStore */
     private ilAuthGuardSessionStore $store;
 
-    /** @var ilAuthGuardProofOfWork|null built on first use */
+    /** @var ilAuthGuardProofOfWork|null handed to the Altcha provider */
     private ?ilAuthGuardProofOfWork $pow;
 
     /** @var \ilLogger|null fetched on first use */
@@ -61,15 +49,19 @@ class ilAuthGuardFormProtection
     /** @var ilAuthGuardSettings|null built on first use */
     private ?ilAuthGuardSettings $settings;
 
-    /** @var ilAuthGuardRecaptcha|null built on first use */
+    /** @var ilAuthGuardRecaptcha|null handed to the reCAPTCHA v2 provider */
     private ?ilAuthGuardRecaptcha $recaptcha;
+
+    /** @var ilAuthGuardProviderRegistry|null built on first use */
+    private ?ilAuthGuardProviderRegistry $registry;
 
     /**
      * @param ilAuthGuardSessionStore|null $store
-     * @param ilAuthGuardProofOfWork|null $pow
+     * @param ilAuthGuardProofOfWork|null $pow for the Altcha provider (tests)
      * @param \ilLogger|null $logger
      * @param ilAuthGuardSettings|null $settings
-     * @param ilAuthGuardRecaptcha|null $recaptcha
+     * @param ilAuthGuardRecaptcha|null $recaptcha for reCAPTCHA v2 (tests)
+     * @param ilAuthGuardProviderRegistry|null $registry used instead of the two
      * @return void
      */
     public function __construct(
@@ -77,13 +69,15 @@ class ilAuthGuardFormProtection
         ?ilAuthGuardProofOfWork $pow = null,
         ?\ilLogger $logger = null,
         ?ilAuthGuardSettings $settings = null,
-        ?ilAuthGuardRecaptcha $recaptcha = null
+        ?ilAuthGuardRecaptcha $recaptcha = null,
+        ?ilAuthGuardProviderRegistry $registry = null
     ) {
         $this->store = $store ?? new ilAuthGuardSessionStore();
         $this->pow = $pow;
         $this->logger = $logger;
         $this->settings = $settings;
         $this->recaptcha = $recaptcha;
+        $this->registry = $registry;
     }
 
     /**
@@ -139,33 +133,34 @@ class ilAuthGuardFormProtection
         $state->set(ilAuthGuardFormState::FIELD_HONEYPOT, $honeypot_name);
 
         $provider = $this->resolveProvider();
-        if ($provider === ilAuthGuardSettings::PROVIDER_ALTCHA) {
-            $this->getProofOfWork()->resetSecret($state);
-        }
+        $context = $this->createContext($state);
+        $provider->prepare($context);
 
         $this->registerAssets();
 
+        // Every provider's block variables are named, only the selected
+        // provider's carry values.
+        $variables = [];
+        foreach ($this->getRegistry()->all() as $candidate) {
+            foreach ($candidate->getBlockVariables() as $name) {
+                $variables[$name] = "";
+            }
+        }
+
         return $this->renderMarkup([
-            "PROVIDER" => $provider,
-            "RECAPTCHA_SITE_KEY" => $provider === ilAuthGuardSettings::PROVIDER_RECAPTCHA
-                ? $this->getSettings()->getRecaptchaSiteKey()
-                : "",
-            "RECAPTCHA_SCRIPT_URL" => $this->getAssetUrl(self::RECAPTCHA_SCRIPT),
+            "PROVIDER" => $provider->getId(),
             "FORM_ID" => $form_id,
             "HONEYPOT_NAME" => $honeypot_name,
-            "POW_FIELD" => self::FIELD_POW,
             "CAPTCHA_FIELD" => self::FIELD_CAPTCHA,
-            "CHALLENGE_URL" => $this->getEndpointUrl(ilAuthGuardGUI::CMD_CHALLENGE, $form_id),
             "IMAGE_URL" => $this->getEndpointUrl(ilAuthGuardGUI::CMD_SHOW_IMAGE, $form_id),
-            "WIDGET_SCRIPT_URL" => $this->getAssetUrl(self::WIDGET_SCRIPT),
-        ]);
+        ] + $provider->getRenderVariables($context) + $variables);
     }
 
     /**
      * Checks a submit and consumes the form's state, whatever the outcome.
-     * Order: timing, honeypot, the selected challenge (Altcha proof-of-work
-     * or Google reCAPTCHA), then the image CAPTCHA when no answer to that
-     * challenge came in. Every rejection carries the same message.
+     * Order: timing, honeypot, the selected challenge provider, then the
+     * image CAPTCHA when no answer to that challenge came in. Every
+     * rejection carries the same message.
      *
      * @param string $form_id the id given to render()
      * @param ServerRequestInterface $request
@@ -221,45 +216,30 @@ class ilAuthGuardFormProtection
             return $this->fail(ilAuthGuardVerificationResult::REASON_HONEYPOT);
         }
 
-        if ($this->resolveProvider() === ilAuthGuardSettings::PROVIDER_RECAPTCHA) {
-            return $this->evaluateRecaptcha($state, $body);
-        }
-
-        $pow_payload = $this->readString($body, self::FIELD_POW);
-        if ($pow_payload !== "") {
-            if ($this->getProofOfWork()->verify($state, $pow_payload)) {
+        // A present answer never falls through to the image CAPTCHA; an
+        // absent one is a visitor without JavaScript, who gets the image.
+        $provider = $this->resolveProvider();
+        $answer = $this->readString($body, $provider->getPostField());
+        if ($answer !== "") {
+            $outcome = $provider->check($answer, $this->createContext($state));
+            if ($outcome === ilAuthGuardChallengeProvider::OUTCOME_PASSED) {
                 return ilAuthGuardVerificationResult::passed();
             }
 
-            return $this->fail(ilAuthGuardVerificationResult::REASON_POW);
+            $unreachable = $outcome === ilAuthGuardChallengeProvider::OUTCOME_UNREACHABLE;
+            if ($unreachable && $this->getSettings()->isAcceptWhenUnreachable()) {
+                $this->getLogger()->warning(
+                    "AuthGuard: submit accepted without a vendor check (form: " . $state->getFormId()
+                    . ", provider: " . $provider->getId() . ", reason: unreachable)"
+                );
+
+                return ilAuthGuardVerificationResult::passed();
+            }
+
+            return $this->fail($provider->getFailureReason());
         }
 
         return $this->evaluateCaptcha($state, $body);
-    }
-
-    /**
-     * A present reCAPTCHA answer is checked with Google and never falls
-     * through to the image CAPTCHA; an absent one means a visitor without
-     * JavaScript, who gets the image CAPTCHA.
-     *
-     * @param ilAuthGuardFormState $state
-     * @param array<mixed> $body
-     * @return ilAuthGuardVerificationResult
-     */
-    private function evaluateRecaptcha(
-        ilAuthGuardFormState $state,
-        array $body
-    ): ilAuthGuardVerificationResult {
-        $answer = $this->readString($body, self::FIELD_RECAPTCHA);
-        if ($answer === "") {
-            return $this->evaluateCaptcha($state, $body);
-        }
-
-        if ($this->getRecaptcha()->verify($answer)) {
-            return ilAuthGuardVerificationResult::passed();
-        }
-
-        return $this->fail(ilAuthGuardVerificationResult::REASON_RECAPTCHA);
     }
 
     /**
@@ -317,20 +297,20 @@ class ilAuthGuardFormProtection
     }
 
     /**
-     * The challenge provider in force: reCAPTCHA only when its keys are
-     * complete, otherwise Altcha.
+     * The challenge provider in force: the selected one when its settings
+     * are complete, otherwise Altcha.
      *
-     * @return string one of the ilAuthGuardSettings::PROVIDER_ constants
+     * @return ilAuthGuardChallengeProvider
      */
-    private function resolveProvider(): string
+    private function resolveProvider(): ilAuthGuardChallengeProvider
     {
         $settings = $this->getSettings();
-        $provider = $settings->getEffectiveProvider();
+        $provider = $this->getRegistry()->resolve($settings);
 
-        if ($provider !== $settings->getProvider()) {
+        if ($provider->getId() !== $settings->getProvider()) {
             $this->getLogger()->error(
-                "AuthGuard: Google reCAPTCHA is selected but its keys are incomplete; "
-                . "the Altcha check is used instead."
+                "AuthGuard: challenge provider '" . $settings->getProvider()
+                . "' is selected but its keys are incomplete; the Altcha check is used instead."
             );
         }
 
@@ -350,15 +330,40 @@ class ilAuthGuardFormProtection
     }
 
     /**
-     * @return ilAuthGuardRecaptcha
+     * @return ilAuthGuardProviderRegistry
      */
-    private function getRecaptcha(): ilAuthGuardRecaptcha
+    private function getRegistry(): ilAuthGuardProviderRegistry
     {
-        if ($this->recaptcha === null) {
-            $this->recaptcha = new ilAuthGuardRecaptcha($this->getSettings(), $this->getLogger());
+        if ($this->registry === null) {
+            $dependencies = [];
+            if ($this->pow !== null) {
+                $dependencies[ilAuthGuardProviderAltcha::ID] = $this->pow;
+            }
+            if ($this->recaptcha !== null) {
+                $dependencies[ilAuthGuardProviderRecaptcha::ID] = $this->recaptcha;
+            }
+
+            $this->registry = ilAuthGuardProviderRegistry::createDefault($dependencies);
         }
 
-        return $this->recaptcha;
+        return $this->registry;
+    }
+
+    /**
+     * @param ilAuthGuardFormState $state
+     * @return ilAuthGuardProviderContext
+     */
+    private function createContext(ilAuthGuardFormState $state): ilAuthGuardProviderContext
+    {
+        $form_id = $state->getFormId();
+
+        return new ilAuthGuardProviderContext(
+            $this->getSettings(),
+            $this->getLogger(),
+            $state,
+            fn (string $command): string => $this->getEndpointUrl($command, $form_id),
+            fn (string $path): string => $this->getAssetUrl($path)
+        );
     }
 
     /**
@@ -369,18 +374,6 @@ class ilAuthGuardFormProtection
     private function createState(string $form_id): ilAuthGuardFormState
     {
         return new ilAuthGuardFormState($this->store, $form_id);
-    }
-
-    /**
-     * @return ilAuthGuardProofOfWork
-     */
-    private function getProofOfWork(): ilAuthGuardProofOfWork
-    {
-        if ($this->pow === null) {
-            $this->pow = new ilAuthGuardProofOfWork();
-        }
-
-        return $this->pow;
     }
 
     /**
@@ -468,20 +461,20 @@ class ilAuthGuardFormProtection
         $variables["CAPTCHA_INFO"] = $plugin->txt("captcha_info");
         $variables["WIDGET_LABEL"] = $plugin->txt("widget_label");
 
-        $provider = $variables["PROVIDER"] ?? ilAuthGuardSettings::PROVIDER_ALTCHA;
+        $provider = (string) ($variables["PROVIDER"] ?? ilAuthGuardProviderRegistry::DEFAULT_ID);
         unset($variables["PROVIDER"]);
-        if ($provider !== ilAuthGuardSettings::PROVIDER_RECAPTCHA) {
-            $provider = ilAuthGuardSettings::PROVIDER_ALTCHA;
-        }
 
         // A template block is output once any of its variables is set, so
         // only the selected provider's block gets values.
-        $other_block = self::BLOCK_VARIABLES[$provider === ilAuthGuardSettings::PROVIDER_RECAPTCHA
-            ? ilAuthGuardSettings::PROVIDER_ALTCHA
-            : ilAuthGuardSettings::PROVIDER_RECAPTCHA];
+        $other_blocks = [];
+        foreach ($this->getRegistry()->all() as $candidate) {
+            if ($candidate->getId() !== $provider) {
+                $other_blocks = array_merge($other_blocks, $candidate->getBlockVariables());
+            }
+        }
 
         foreach ($variables as $name => $value) {
-            if (!in_array($name, $other_block, true)) {
+            if (!in_array($name, $other_blocks, true)) {
                 $tpl->setVariable($name, htmlspecialchars($value, ENT_QUOTES, "UTF-8"));
             }
         }

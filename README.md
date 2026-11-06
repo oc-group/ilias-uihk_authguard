@@ -18,34 +18,83 @@ A form is accepted only if it passes, in this order:
 2. **Honeypot.** A hidden decoy input, named differently for every session and form, must stay
    empty. It is hidden from screen readers and keyboard navigation (`aria-hidden`, `tabindex`),
    so it never traps a visitor using assistive technology.
-3. **Proof-of-work.** The [Altcha](https://altcha.org) widget solves a small computational
-   challenge in the background as soon as the page loads. The visitor clicks nothing.
+3. **Challenge provider.** One challenge, chosen by the administrator on the plugin's
+   configuration screen (see "Challenge providers" below). The default is a proof-of-work: the
+   [Altcha](https://altcha.org) widget solves a small computational challenge in the background as
+   soon as the page loads, and the visitor clicks nothing.
 4. **Image CAPTCHA, only without JavaScript.** A visitor whose browser runs no scripts sees a
    distorted-text image and a field for it, and must answer correctly.
 
 Every check state is held in the ILIAS session under the form's own id, so two protected forms in
-one session never interfere, and every verification is single use.
+one session never interfere, and every verification is single use. Every rejection shows the visitor
+the same message, whichever check failed; the specific reason goes only to the ILIAS log.
+
+## Challenge providers
+
+The administrator picks one provider under `Administration` -> `Extending ILIAS` -> `Plugins` ->
+AuthGuard -> `Configure`. Altcha is the default and needs no setting. Each external provider needs
+the keys issued by its vendor, which are stored as ILIAS settings; the secret is stored encrypted.
+A provider whose keys are incomplete is not used: the Altcha check runs instead, and the ILIAS log
+says so.
+
+**When the vendor cannot be reached.** By default an external provider fails closed: if the
+server cannot get an answer from the vendor, the submit is rejected. The checkbox "Accept submits
+when the vendor cannot be reached" in the same section turns this around, for all external
+providers at once (it has no effect on Altcha, which runs on the server). "Cannot be reached" means
+only that the verification request failed: a connection error, a timeout, a TLS error, an HTTP 5xx
+status, or an answer that is not readable JSON. A well-formed answer from the vendor that refuses
+the visitor (invalid, expired or reused token, wrong action, reCAPTCHA v3 score below the
+threshold) is always a rejection, and so is a 4xx status, which points at a wrong key on our side.
+Timing and honeypot checks run first and reject regardless, and a visitor whose widget sent no
+answer still gets the image CAPTCHA. Every submit accepted this way is written to the ILIAS log at
+warning level with the provider and the form id (`submit accepted without a vendor check`), so a
+skipped protection is visible. Leave the checkbox off unless a vendor outage that locks visitors
+out is worse for you than the protection being absent while it lasts.
+
+| Provider | Challenge | Data sent to the vendor |
+|---|---|---|
+| Altcha (default) | proof of work, no click | none |
+| Google reCAPTCHA v2 | checkbox | yes |
+| Google reCAPTCHA v3 | invisible, score based; the score threshold is configurable (default 0.5) | yes |
+| Cloudflare Turnstile | widget, usually no click | yes |
+| hCaptcha | checkbox | yes |
+| Friendly Captcha | proof of work, no click; global or EU endpoint | yes |
+
+The configuration screen has a button, below the form, that opens one dialog with a draft text for
+the privacy policy of the site for each external provider, and under each draft a list of what to
+check or complete before using it. The drafts are in English, to be translated into the language
+of the site's privacy policy; they are starting points with placeholders for the operator's data,
+to be reviewed by the data protection officer or a lawyer, and are not legal advice.
+
+The Friendly Captcha widget (npm package `@friendlycaptcha/sdk`) is served from the plugin, like the
+Altcha widget; the other external widgets are loaded from the vendor. In every case the browser
+still contacts the vendor, and the vendor verifies the answer with the server.
 
 ## Privacy by design
 
-Everything is generated and verified on the ILIAS server; the widget script is shipped with the
-plugin and loaded from the same host. No request is made to any third-party service and no user data
-leaves the installation. The plugin sets no cookies of its own and stores no personal data and no
-database rows: it keeps a render timestamp, the honeypot name, a random secret for the
-proof-of-work challenges and the expected CAPTCHA answer in the ILIAS session that already exists,
-and all of it is discarded with the session. A rejected submission is written to the ILIAS log with
-the form id and the reason, nothing else.
+With the default provider (Altcha) everything is generated and verified on the ILIAS server; the
+widget script is shipped with the plugin and loaded from the same host. No request is made to any
+third-party service and no user data leaves the installation. **External providers (Google
+reCAPTCHA v2 and v3, Cloudflare Turnstile, hCaptcha, Friendly Captcha) send data about the visitor
+to the vendor** (at least the visitor's answer and, with the vendor's script, whatever that script
+collects), so the privacy policy of the installation must name the vendor before one of them is
+selected. The plugin sets no cookies of its own and stores no personal data and no database rows
+for visitors: it keeps a render timestamp, the honeypot name, a random secret for the proof-of-work
+challenges and the expected CAPTCHA answer in the ILIAS session that already exists, and all of it
+is discarded with the session. A rejected submission is written to the ILIAS log with the form id
+and the reason, nothing else.
 
 ## Accessibility
 
-The honeypot and the timing check are invisible to assistive technology, and the proof-of-work asks
-the visitor to do nothing, so none of the three is a barrier. The image CAPTCHA, shown only when
-JavaScript is off, is image-only and does not meet WCAG 2.1 success criterion 1.1.1 (Non-text
-Content, Level A), which requires a CAPTCHA to be available in more than one modality; there is no
-audio alternative yet. Installations subject to EN 301 549 should provide an alternative
-registration route, assisted registration on request for example, and state it on the page.
-The Altcha widget's own accessibility claims are the vendor's statement and have not been audited
-for this plugin.
+The honeypot and the timing check are invisible to assistive technology, and the default
+proof-of-work asks the visitor to do nothing, so none of the three is a barrier. The external
+providers have their own accessibility properties, which are the vendors' statements and have not
+been audited for this plugin; reCAPTCHA v2 and hCaptcha may show an image challenge. The image
+CAPTCHA, shown only when JavaScript is off, is image-only and does not meet WCAG 2.1 success
+criterion 1.1.1 (Non-text Content, Level A), which requires a CAPTCHA to be available in more than
+one modality; there is no audio alternative yet. Installations subject to EN 301 549 should provide
+an alternative registration route, assisted registration on request for example, and state it on
+the page.
 
 ## For plugin developers
 
@@ -87,14 +136,15 @@ responsible for them.
 
 ## License
 
-GNU General Public License v3.0 or later — see [LICENSE](LICENSE).
+GNU General Public License v3.0 or later (see [LICENSE](LICENSE)).
 
 The proof-of-work widget is [Altcha](https://altcha.org) (MIT), installed as the npm dependency
-`altcha` (see `package.json`); the server side uses `altcha-org/altcha` (MIT) through Composer.
+`altcha` (see `package.json`); the server side uses `altcha-org/altcha` (MIT) through Composer. The
+Friendly Captcha widget is the npm dependency `@friendlycaptcha/sdk` (MPL-2.0), used unmodified.
 
 ## Reporting a security issue
 
-By e-mail to plugins@oc-group.eu, not as a public issue — see [SECURITY.md](SECURITY.md).
+By e-mail to plugins@oc-group.eu, not as a public issue (see [SECURITY.md](SECURITY.md)).
 
 ## Installation
 
@@ -122,11 +172,12 @@ npm install
 ```
 
 Run it from the plugin directory (`AuthGuard`), next to `composer install`. ILIAS installs a plugin
-with `composer du` only and runs no npm step, so the Altcha widget (`node_modules/altcha`) is not
-there until you do this. Without it the widget script answers 404, the `<altcha-widget>` element is
-never defined and no proof-of-work is submitted. The image CAPTCHA is rendered only for visitors
-without JavaScript, so every visitor with JavaScript is rejected on the protected form (registration
-included) until `npm install` has been run.
+with `composer du` only and runs no npm step, so the Altcha widget (`node_modules/altcha`) and the
+Friendly Captcha widget (`node_modules/@friendlycaptcha/sdk`) are not there until you do this.
+Without Altcha the widget script answers 404, the `<altcha-widget>` element is never defined and no
+proof-of-work is submitted. The image CAPTCHA is rendered only for visitors without JavaScript, so
+every visitor with JavaScript is rejected on the protected form (registration included) until
+`npm install` has been run.
 
 ### Install the plugin
 

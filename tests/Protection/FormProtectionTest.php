@@ -23,8 +23,8 @@ use GuzzleHttp\Psr7\ServerRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 
-require_once __DIR__ . "/ArraySessionStore.php";
-require_once __DIR__ . "/SettingsFixture.php";
+require_once __DIR__ . "/../ArraySessionStore.php";
+require_once __DIR__ . "/../SettingsFixture.php";
 
 class FormProtectionTest extends TestCase
 {
@@ -477,9 +477,9 @@ class FormProtectionTest extends TestCase
 
     private function useRecaptcha(): void
     {
-        $this->settings->setProvider(\ilAuthGuardSettings::PROVIDER_RECAPTCHA);
-        $this->settings->setRecaptchaSiteKey(self::SITE_KEY);
-        $this->settings->setRecaptchaSecretKey("6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe");
+        $this->settings->setProvider(\ilAuthGuardProviderRecaptcha::ID);
+        $this->settings->setProviderValue("recaptcha", "site_key", self::SITE_KEY);
+        $this->settings->setProviderSecret("recaptcha", "secret_key", "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe");
     }
 
     public function testEveryReasonShowsTheSameMessage(): void
@@ -715,7 +715,7 @@ class FormProtectionTest extends TestCase
 
     public function testRecaptchaWithIncompleteKeysUsesAltchaAndSaysSo(): void
     {
-        $this->settings->setProvider(\ilAuthGuardSettings::PROVIDER_RECAPTCHA);
+        $this->settings->setProvider(\ilAuthGuardProviderRecaptcha::ID);
         $this->logger->expects($this->atLeastOnce())
             ->method("error")
             ->with($this->stringContains("keys are incomplete"));

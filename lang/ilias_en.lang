@@ -1,34 +1,61 @@
 captcha_alt#:#CAPTCHA image
 captcha_info#:#Enter the characters shown in the image above.
 captcha_label#:#Security code
-cfg_check_altcha#:#Proof of work (Altcha)
-cfg_check_altcha_info#:#The visitor's browser solves a small computation without any click. Active when Altcha is the selected provider.
+cfg_accept_unreachable#:#Accept submits when the vendor cannot be reached
+cfg_accept_unreachable_info#:#Concerns external providers only, not Altcha. Off by default: when the vendor cannot be reached (connection error, timeout, server error or unreadable answer), the submit is rejected. When on, such a submit is accepted and a warning is written to the ILIAS log, so the protection is skipped for as long as the outage lasts. An answer in which the vendor refuses the visitor is always a rejection.
+cfg_api_key#:#API key
 cfg_check_honeypot#:#Honeypot
 cfg_check_honeypot_info#:#Rejects a submit that fills a hidden field which only automated scripts fill.
 cfg_check_image#:#Image CAPTCHA for visitors without JavaScript
-cfg_check_image_info#:#Shown only when JavaScript is off, with either provider.
+cfg_check_image_info#:#Shown only when JavaScript is off, whichever provider is selected.
 cfg_check_message#:#Unified rejection message
 cfg_check_message_info#:#Every rejected submit shows the same message, so a script cannot tell which check it failed. The reason is written to the ILIAS log.
-cfg_check_recaptcha#:#Google reCAPTCHA v2
-cfg_check_recaptcha_info#:#The visitor ticks the Google checkbox and the answer is verified with Google. Active when selected below.
 cfg_check_timing#:#Submit timing
 cfg_check_timing_info#:#Rejects a submit made less than %s seconds after the form was shown. Fixed value.
+cfg_endpoint#:#Endpoint
+cfg_endpoint_eu#:#EU
+cfg_endpoint_global#:#Global
+cfg_endpoint_info#:#The EU endpoint must be enabled for the site key in the Friendly Captcha dashboard, which needs an Advanced or Enterprise plan.
+cfg_err_endpoint#:#Choose an endpoint.
+cfg_err_friendlycaptcha_api_key#:#Enter the API key issued by Friendly Captcha.
+cfg_err_friendlycaptcha_site_key#:#Enter the site key issued by Friendly Captcha.
+cfg_err_hcaptcha_secret_key#:#Enter the secret key issued by hCaptcha.
+cfg_err_hcaptcha_site_key#:#Enter the site key issued by hCaptcha, in the form of a UUID.
 cfg_err_provider#:#Choose a provider.
 cfg_err_secret_key#:#Enter the secret key issued by Google.
 cfg_err_site_key#:#Enter the site key issued by Google.
+cfg_err_threshold#:#Enter a number from 0 to 1, for example 0.5.
+cfg_err_turnstile_secret_key#:#Enter the secret key issued by Cloudflare.
+cfg_err_turnstile_site_key#:#Enter the site key issued by Cloudflare.
+cfg_privacy_checks_title#:#What to check
+cfg_privacy_draft_label#:#Draft privacy text
+cfg_privacy_draft_notice#:#Draft to be reviewed by the data protection officer or a lawyer. It is not legal advice. Adapt the placeholders in square brackets before use.
+cfg_privacy_draft_show#:#Show draft privacy texts
+cfg_privacy_drafts_intro#:#Draft texts for the privacy policy of this site, one for each external provider, each with a list of what to check before using it. The drafts are in English: translate the one you use into the language of your privacy policy. Your own privacy policy is kept under Administration > Legal Regulations > Declaration of Data Protection.
+cfg_privacy_drafts_title#:#Draft privacy texts
 cfg_provider#:#Provider
-cfg_provider_altcha#:#Altcha (proof of work)
-cfg_provider_altcha_info#:#Runs on this server and sends nothing to a third party.
-cfg_provider_recaptcha#:#Google reCAPTCHA v2 (checkbox)
-cfg_provider_recaptcha_info#:#Loads a script from Google and sends the visitor's answer to Google for verification. If Google cannot be reached, submits are rejected.
+cfg_provider_altcha#:#Altcha
+cfg_provider_altcha_info#:#Proof of work: the visitor's browser solves a small computation without any click. Runs on this server and sends nothing to a third party.
+cfg_provider_external_note#:#This provider sends the visitor's data to a third party: update the privacy policy of this site if and when you select it.
+cfg_provider_friendlycaptcha#:#Friendly Captcha
+cfg_provider_friendlycaptcha_info#:#Proof of work solved in the background. The widget is served from this server, but it fetches the puzzle from Friendly Captcha, which also verifies the answer. If Friendly Captcha cannot be reached, submits are rejected unless the option below is on.
+cfg_provider_hcaptcha#:#hCaptcha
+cfg_provider_hcaptcha_info#:#Checkbox challenge. Loads a script from hCaptcha and sends the visitor's answer to hCaptcha for verification. If hCaptcha cannot be reached, submits are rejected unless the option below is on.
+cfg_provider_recaptcha#:#Google reCAPTCHA v2
+cfg_provider_recaptcha3#:#Google reCAPTCHA v3
+cfg_provider_recaptcha3_info#:#Invisible: there is no box to tick, Google scores every visit. Loads a script from Google and sends the visitor's data to Google for scoring. Needs its own v3 keys. If Google cannot be reached, submits are rejected unless the option below is on.
+cfg_provider_recaptcha_info#:#Checkbox: the visitor ticks a box. Loads a script from Google and sends the visitor's answer to Google for verification. If Google cannot be reached, submits are rejected unless the option below is on.
+cfg_provider_turnstile#:#Cloudflare Turnstile
+cfg_provider_turnstile_info#:#A widget that usually needs no click. Loads a script from Cloudflare and sends the visitor's answer to Cloudflare for verification. If Cloudflare cannot be reached, submits are rejected unless the option below is on.
 cfg_secret_key#:#Secret key
 cfg_secret_key_info#:#Stored encrypted and never shown again.
 cfg_secret_key_stored#:#A secret key is stored. Leave the field empty to keep it.
 cfg_section_checks#:#Checks performed
 cfg_section_provider#:#Challenge provider
 cfg_site_key#:#Site key
+cfg_threshold#:#Score threshold
+cfg_threshold_info#:#From 0.0 (a bot) to 1.0 (a person). A submit scoring below this value is rejected. Google recommends starting at 0.5.
 err_invalid_token#:#The request could not be verified. Please try again.
 plugin_description#:#Protects forms against automated submissions with invisible checks and a fallback image CAPTCHA.
-plugin_title#:#AuthGuard
 security_check_failed#:#The security check failed. Please try again.
 widget_label#:#Security check

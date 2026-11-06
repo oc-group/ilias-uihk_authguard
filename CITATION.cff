@@ -7,17 +7,27 @@ authors:
     website: "https://www.oc-group.eu"
     email: "plugins@oc-group.eu"
 abstract: >-
-  ILIAS plugin that rejects automated submissions of the self-registration form.
-  It generates a CAPTCHA image on the ILIAS server itself, contacts no
-  third-party service, and adds invisible checks that ask a legitimate visitor
-  for nothing: each code is single-use, image regeneration is throttled per
-  session, and a submission arriving less than two seconds after the form was
-  displayed is refused. ILIAS core shipped a CAPTCHA on that form up to ILIAS 7
-  and removed it in ILIAS 8 on the grounds that it no longer kept bots out; this
-  plugin restores the protection as a user-interface hook plugin, without any
-  change to the ILIAS core.
-version: 9.1.0
-date-released: "2026-08-20"
+  ILIAS plugin that rejects automated submissions of the self-registration
+  form and offers the same protection to other plugins that publish forms to
+  anonymous visitors, through a documented form protection API. A submission
+  has to pass a submit-timing check (less than two seconds after the form was
+  shown is refused), a honeypot (a hidden decoy field that only scripts fill)
+  and a challenge provider chosen by the administrator. By default (Altcha)
+  the challenge is a proof-of-work solved in the background without a click,
+  generated and verified on the ILIAS server, and no visitor data leaves the
+  installation. Instead the administrator can select an external provider,
+  Google reCAPTCHA v2 or v3 (with a configurable score threshold), Cloudflare
+  Turnstile, hCaptcha or Friendly Captcha (global or EU endpoint); these send
+  data about the visitor to the vendor. Visitors without JavaScript get an
+  image CAPTCHA as a fallback. ILIAS core shipped a CAPTCHA on the
+  self-registration form up to ILIAS 7 and removed it in ILIAS 8 on the
+  grounds that it no longer kept bots out; this plugin restores the protection
+  as a user-interface hook plugin, without any change to the ILIAS core. The
+  image fallback is image-only and does not meet WCAG 2.1 success criterion
+  1.1.1; installations subject to EN 301 549 should provide an alternative
+  registration route. For ILIAS 11 (11.0 and later 11.x), PHP 8.3 or 8.4.
+version: 11.1.3
+date-released: "2026-11-06"
 license: GPL-3.0-or-later
 repository-code: "https://github.com/oc-group/ilias-uihk_authguard"
 doi: "10.5281/zenodo.22028606"
@@ -27,5 +37,12 @@ keywords:
   - bot protection
   - spam prevention
   - self-registration
+  - proof-of-work
+  - Altcha
+  - honeypot
+  - reCAPTCHA
+  - Turnstile
+  - hCaptcha
+  - Friendly Captcha
   - learning management system
   - PHP

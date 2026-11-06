@@ -1,34 +1,61 @@
 captcha_alt#:#Immagine CAPTCHA
 captcha_info#:#Inserisci i caratteri mostrati nell'immagine sopra.
 captcha_label#:#Codice di sicurezza
-cfg_check_altcha#:#Prova di lavoro (Altcha)
-cfg_check_altcha_info#:#Il browser del visitatore risolve un piccolo calcolo senza alcun clic. Attiva quando il provider scelto è Altcha.
+cfg_accept_unreachable#:#Accetta gli invii se il fornitore non è raggiungibile
+cfg_accept_unreachable_info#:#Riguarda solo i provider esterni, non Altcha. Disattivato per impostazione predefinita: quando il fornitore non è raggiungibile (errore di connessione, timeout, errore del server o risposta illeggibile), l'invio viene rifiutato. Se attivato, un invio di questo tipo viene accettato e un avviso viene scritto nel log di ILIAS, quindi la protezione viene saltata finché il problema dura. Una risposta con cui il fornitore rifiuta il visitatore è sempre un rifiuto.
+cfg_api_key#:#Chiave API
 cfg_check_honeypot#:#Honeypot
 cfg_check_honeypot_info#:#Rifiuta l'invio che compila un campo nascosto, compilato solo da script automatici.
 cfg_check_image#:#CAPTCHA a immagine per chi non usa JavaScript
-cfg_check_image_info#:#Mostrato solo quando JavaScript è disattivato, con entrambi i provider.
+cfg_check_image_info#:#Mostrato solo quando JavaScript è disattivato, qualunque sia il provider scelto.
 cfg_check_message#:#Messaggio di rifiuto unico
 cfg_check_message_info#:#Ogni invio rifiutato mostra lo stesso messaggio, così uno script non capisce quale controllo ha fallito. Il motivo viene scritto nel log di ILIAS.
-cfg_check_recaptcha#:#Google reCAPTCHA v2
-cfg_check_recaptcha_info#:#Il visitatore spunta la casella di Google e la risposta viene verificata con Google. Attivo quando è scelto qui sotto.
 cfg_check_timing#:#Tempo di invio
 cfg_check_timing_info#:#Rifiuta un invio fatto meno di %s secondi dopo la visualizzazione del modulo. Valore fisso.
+cfg_endpoint#:#Endpoint
+cfg_endpoint_eu#:#UE
+cfg_endpoint_global#:#Globale
+cfg_endpoint_info#:#L'endpoint UE deve essere abilitato per la chiave del sito nella dashboard di Friendly Captcha, che richiede un piano Advanced o Enterprise.
+cfg_err_endpoint#:#Scegli un endpoint.
+cfg_err_friendlycaptcha_api_key#:#Inserisci la chiave API rilasciata da Friendly Captcha.
+cfg_err_friendlycaptcha_site_key#:#Inserisci la chiave del sito rilasciata da Friendly Captcha.
+cfg_err_hcaptcha_secret_key#:#Inserisci la chiave segreta rilasciata da hCaptcha.
+cfg_err_hcaptcha_site_key#:#Inserisci la chiave del sito rilasciata da hCaptcha, nel formato di un UUID.
 cfg_err_provider#:#Scegli un provider.
 cfg_err_secret_key#:#Inserisci la chiave segreta rilasciata da Google.
 cfg_err_site_key#:#Inserisci la chiave del sito rilasciata da Google.
+cfg_err_threshold#:#Inserisci un numero da 0 a 1, ad esempio 0.5.
+cfg_err_turnstile_secret_key#:#Inserisci la chiave segreta rilasciata da Cloudflare.
+cfg_err_turnstile_site_key#:#Inserisci la chiave del sito rilasciata da Cloudflare.
+cfg_privacy_checks_title#:#Cosa verificare
+cfg_privacy_draft_label#:#Bozza di testo per la privacy
+cfg_privacy_draft_notice#:#Bozza da far verificare al responsabile della protezione dei dati o a un legale. Non costituisce consulenza legale. Adatta i segnaposto tra parentesi quadre prima dell'uso.
+cfg_privacy_draft_show#:#Mostra le bozze dei testi per la privacy
+cfg_privacy_drafts_intro#:#Bozze di testo per l'informativa sulla privacy di questo sito, una per ogni provider esterno, ciascuna con l'elenco di ciò che va verificato prima di usarla. Le bozze sono in inglese: traduci quella che usi nella lingua della tua informativa sulla privacy. La tua informativa sulla privacy si gestisce in Amministrazione > Legal Regulations > Declaration of Data Protection.
+cfg_privacy_drafts_title#:#Bozze di testo per la privacy
 cfg_provider#:#Provider
-cfg_provider_altcha#:#Altcha (prova di lavoro)
-cfg_provider_altcha_info#:#Gira su questo server e non invia nulla a terzi.
-cfg_provider_recaptcha#:#Google reCAPTCHA v2 (casella)
-cfg_provider_recaptcha_info#:#Carica uno script da Google e invia la risposta del visitatore a Google per la verifica. Se Google non è raggiungibile, gli invii vengono rifiutati.
+cfg_provider_altcha#:#Altcha
+cfg_provider_altcha_info#:#Prova di lavoro: il browser del visitatore risolve un piccolo calcolo senza alcun clic. Gira su questo server e non invia nulla a terzi.
+cfg_provider_external_note#:#Questo provider invia i dati del visitatore a terzi: aggiorna l'informativa sulla privacy di questo sito se e quando lo selezioni.
+cfg_provider_friendlycaptcha#:#Friendly Captcha
+cfg_provider_friendlycaptcha_info#:#Prova di lavoro risolta in background. Il widget è servito da questo server, ma scarica il puzzle da Friendly Captcha, che verifica anche la risposta. Se Friendly Captcha non è raggiungibile, gli invii vengono rifiutati, a meno che l'opzione qui sotto sia attiva.
+cfg_provider_hcaptcha#:#hCaptcha
+cfg_provider_hcaptcha_info#:#Sfida con casella. Carica uno script da hCaptcha e invia la risposta del visitatore a hCaptcha per la verifica. Se hCaptcha non è raggiungibile, gli invii vengono rifiutati, a meno che l'opzione qui sotto sia attiva.
+cfg_provider_recaptcha#:#Google reCAPTCHA v2
+cfg_provider_recaptcha3#:#Google reCAPTCHA v3
+cfg_provider_recaptcha3_info#:#Invisibile: nessuna casella da spuntare, Google assegna un punteggio a ogni visita. Carica uno script da Google e invia i dati del visitatore a Google per la valutazione. Richiede chiavi v3 dedicate. Se Google non è raggiungibile, gli invii vengono rifiutati, a meno che l'opzione qui sotto sia attiva.
+cfg_provider_recaptcha_info#:#Casella: il visitatore spunta una casella. Carica uno script da Google e invia la risposta del visitatore a Google per la verifica. Se Google non è raggiungibile, gli invii vengono rifiutati, a meno che l'opzione qui sotto sia attiva.
+cfg_provider_turnstile#:#Cloudflare Turnstile
+cfg_provider_turnstile_info#:#Un widget che di norma non richiede alcun clic. Carica uno script da Cloudflare e invia la risposta del visitatore a Cloudflare per la verifica. Se Cloudflare non è raggiungibile, gli invii vengono rifiutati, a meno che l'opzione qui sotto sia attiva.
 cfg_secret_key#:#Chiave segreta
 cfg_secret_key_info#:#Salvata cifrata e non più mostrata.
 cfg_secret_key_stored#:#Una chiave segreta è salvata. Lascia il campo vuoto per mantenerla.
 cfg_section_checks#:#Controlli eseguiti
 cfg_section_provider#:#Provider della verifica
 cfg_site_key#:#Chiave del sito
+cfg_threshold#:#Soglia del punteggio
+cfg_threshold_info#:#Da 0.0 (un bot) a 1.0 (una persona). Un invio con punteggio inferiore a questo valore viene rifiutato. Google consiglia di iniziare da 0.5.
 err_invalid_token#:#Non è stato possibile verificare la richiesta. Riprova.
 plugin_description#:#Protegge i moduli dagli invii automatici con controlli invisibili e un CAPTCHA a immagine di riserva.
-plugin_title#:#AuthGuard
 security_check_failed#:#Il controllo di sicurezza non è riuscito. Riprova.
 widget_label#:#Verifica di sicurezza

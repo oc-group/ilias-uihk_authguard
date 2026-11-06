@@ -22,7 +22,7 @@ use AltchaOrg\Altcha\Payload;
 use AltchaOrg\Altcha\SolveChallengeOptions;
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . "/ArraySessionStore.php";
+require_once __DIR__ . "/../ArraySessionStore.php";
 
 class ProofOfWorkTest extends TestCase
 {
