@@ -1,0 +1,17 @@
+Protection of forms against automated abuse ({{NAME}})
+
+This website uses {{SERVICE}} on its forms to {{PURPOSE}}, and so to protect the website and its users against spam and abuse. {{ABOUT}}
+
+{{PROCESSING}}
+
+Data controller: [name and contact details of the controller]. {{CONTROLLER}}
+
+Legal basis: Art. 6(1)(f) GDPR, our legitimate interest in the security of the website and in blocking abusive use. [To be settled by the data protection officer: whether consent is required under the ePrivacy rules for {{CONSENT_SUBJECT}}; adapt this paragraph accordingly.]
+
+More information: {{MORE_INFORMATION}}
+@@CHECKS@@
+Fill in the name and contact details of the data controller where the draft says [name and contact details of the controller].
+{{SPECIFIC_CHECKS}}
+Decide with the data protection officer whether consent under the ePrivacy rules is needed for the provider's script and for any cookies or similar technologies, whether the cookie banner of this site must hold the script back until consent is given, and replace the bracketed ePrivacy sentence with the result.
+Translate the draft into the language of the privacy policy of this site, remove every square bracket and adapt the wording to the rest of the policy.
+Check the vendor's own privacy documents (linked in the draft) on the day you publish the text: the vendor may have changed its roles, locations or safeguards since this draft was written.
