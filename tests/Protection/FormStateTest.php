@@ -17,7 +17,7 @@ namespace AuthGuard\Tests;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . "/ArraySessionStore.php";
+require_once __DIR__ . "/../ArraySessionStore.php";
 
 class FormStateTest extends TestCase
 {
