@@ -10,6 +10,22 @@
 	<div class="ilAuthGuardRecaptcha" data-authguard-sitekey="{RECAPTCHA_SITE_KEY}"></div>
 	<script type="module" src="{RECAPTCHA_SCRIPT_URL}"></script>
 	<!-- END recaptcha -->
+	<!-- BEGIN recaptcha3 -->
+	<input type="hidden" name="{RECAPTCHA3_FIELD}" value="" class="ilAuthGuardRecaptcha3" data-authguard-sitekey="{RECAPTCHA3_SITE_KEY}" data-authguard-action="{RECAPTCHA3_ACTION}" />
+	<script type="module" src="{RECAPTCHA3_SCRIPT_URL}"></script>
+	<!-- END recaptcha3 -->
+	<!-- BEGIN turnstile -->
+	<div class="ilAuthGuardTurnstile" data-authguard-sitekey="{TURNSTILE_SITE_KEY}"></div>
+	<script type="module" src="{TURNSTILE_SCRIPT_URL}"></script>
+	<!-- END turnstile -->
+	<!-- BEGIN hcaptcha -->
+	<div class="ilAuthGuardHcaptcha" data-authguard-sitekey="{HCAPTCHA_SITE_KEY}"></div>
+	<script type="module" src="{HCAPTCHA_SCRIPT_URL}"></script>
+	<!-- END hcaptcha -->
+	<!-- BEGIN friendlycaptcha -->
+	<div class="ilAuthGuardFriendlyCaptcha" data-authguard-sitekey="{FRIENDLYCAPTCHA_SITE_KEY}" data-authguard-endpoint="{FRIENDLYCAPTCHA_ENDPOINT}"></div>
+	<script type="module" src="{FRIENDLYCAPTCHA_SCRIPT_URL}"></script>
+	<!-- END friendlycaptcha -->
 	<noscript>
 		<div class="ilAuthGuardWidget">
 			<svg class="ilAuthGuardShield" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" focusable="false">

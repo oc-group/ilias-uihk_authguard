@@ -1,0 +1,11 @@
+Protection of forms against automated abuse (Google reCAPTCHA v3)
+
+This website uses Google reCAPTCHA v3 on its forms to tell human visitors from automated programs, and so to protect the website and its users against spam and abuse. The service is invisible and scores each visit. [If the reCAPTCHA badge is hidden, the page must state that the site is protected by reCAPTCHA, for example: "This site is protected by reCAPTCHA."] The service is provided by [Google legal entity and country, as named in the Google Cloud contract].
+
+When a visitor reaches a page with a protected form, the service examines signals about the visit to assess the risk of automated abuse, and sets the cookie _GRECAPTCHA, which Google describes as necessary to provide its risk analysis. [Data categories processed by Google: to be completed from the Google documentation.]
+
+Data controller: [name and contact details of the controller]. Since 2 April 2026 Google acts as a data processor on our behalf and we are the sole controller; Google commits to comply with the GDPR in its Cloud Data Processing Addendum. [Location of the processing and transfers outside the EU: to be completed from the Google Cloud terms.]
+
+Legal basis: Art. 6(1)(f) GDPR, our legitimate interest in the security of the website and in blocking abusive use. [To be settled by the data protection officer: whether consent is required under the ePrivacy rules for the reCAPTCHA script and the cookie; adapt this paragraph accordingly.]
+
+More information: [link to the Google privacy information for reCAPTCHA]

@@ -1,0 +1,11 @@
+Fill in the name and contact details of the data controller where the draft says [name and contact details of the controller].
+Conclude or accept the Google Cloud Data Processing Addendum for the Google account that issued the reCAPTCHA keys.
+Replace [Google legal entity and country, as named in the Google Cloud contract] with the entity and country named in your Google Cloud contract.
+Replace [Data categories processed by Google: to be completed from the Google documentation] with the data categories listed in Google's reCAPTCHA documentation.
+Replace [Location of the processing and transfers outside the EU: to be completed from the Google Cloud terms] with the location and the transfer safeguards stated in the Google Cloud terms.
+Replace [link to the Google privacy information for reCAPTCHA] with the link you use for Google's reCAPTCHA privacy information.
+Confirm that Google still acts as processor and that you are the sole controller (stated by Google from 2 April 2026): https://docs.cloud.google.com/recaptcha/docs/faq
+The service sets the necessary cookie _GRECAPTCHA: list it in the cookie information of this site if you keep such a list.
+Decide with the data protection officer whether consent under the ePrivacy rules is needed for the provider's script and for any cookies or similar technologies, whether the cookie banner of this site must hold the script back until consent is given, and replace the bracketed ePrivacy sentence with the result.
+Translate the draft into the language of the privacy policy of this site, remove every square bracket and adapt the wording to the rest of the policy.
+Check the vendor's own privacy documents (linked in the draft) on the day you publish the text: the vendor may have changed its roles, locations or safeguards since this draft was written.

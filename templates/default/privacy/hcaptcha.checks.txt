@@ -1,0 +1,8 @@
+Fill in the name and contact details of the data controller where the draft says [name and contact details of the controller].
+The hCaptcha data processing addendum is incorporated in the hCaptcha terms: check that your account accepted those terms, and keep a copy of the addendum.
+Check the statements about the EU standard contractual clauses, the EU-U.S. Data Privacy Framework and the transfer to the United States against the current hCaptcha privacy policy (https://www.hcaptcha.com/privacy).
+hCaptcha's own sample text also names Art. 6(1)(b) GDPR next to Art. 6(1)(f); this draft uses Art. 6(1)(f) only: confirm with the data protection officer which legal basis applies to this site.
+The analysis can run in the background without showing a challenge: keep the sentence that says so in the draft.
+Decide with the data protection officer whether consent under the ePrivacy rules is needed for the provider's script and for any cookies or similar technologies, whether the cookie banner of this site must hold the script back until consent is given, and replace the bracketed ePrivacy sentence with the result.
+Translate the draft into the language of the privacy policy of this site, remove every square bracket and adapt the wording to the rest of the policy.
+Check the vendor's own privacy documents (linked in the draft) on the day you publish the text: the vendor may have changed its roles, locations or safeguards since this draft was written.

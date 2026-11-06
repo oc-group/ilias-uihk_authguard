@@ -33,14 +33,33 @@ class SettingsTest extends TestCase
         $this->settings = $this->makeSettings();
     }
 
+    /**
+     * What the configuration form does: the registry judges the submitted values.
+     *
+     * @return array<string, string>
+     */
+    private function validate(string $provider, string $site_key, string $secret_key, bool $secret_stored): array
+    {
+        return \ilAuthGuardProviderRegistry::createDefault()->validate(
+            $provider,
+            ["site_key" => $site_key, "secret_key" => $secret_key],
+            ["secret_key" => $secret_stored]
+        );
+    }
+
+    private function isRecaptchaConfigured(\ilAuthGuardSettings $settings): bool
+    {
+        return (new \ilAuthGuardProviderRecaptcha())->isConfigured($settings);
+    }
+
     public function testDefaultsOfAnEmptyStore(): void
     {
-        $this->assertSame(\ilAuthGuardSettings::PROVIDER_ALTCHA, $this->settings->getProvider());
-        $this->assertSame(\ilAuthGuardSettings::PROVIDER_ALTCHA, $this->settings->getEffectiveProvider());
-        $this->assertSame("", $this->settings->getRecaptchaSiteKey());
-        $this->assertFalse($this->settings->hasRecaptchaSecretKey());
-        $this->assertSame("", $this->settings->getRecaptchaSecretKey());
-        $this->assertFalse($this->settings->isRecaptchaConfigured());
+        $this->assertSame(\ilAuthGuardProviderAltcha::ID, $this->settings->getProvider());
+        $this->assertSame(\ilAuthGuardProviderAltcha::ID, $this->settings->getEffectiveProvider());
+        $this->assertSame("", $this->settings->getProviderValue("recaptcha", "site_key"));
+        $this->assertFalse($this->settings->hasProviderSecret("recaptcha", "secret_key"));
+        $this->assertSame("", $this->settings->getProviderSecret("recaptcha", "secret_key"));
+        $this->assertFalse($this->isRecaptchaConfigured($this->settings));
     }
 
     public function testModuleNameCarriesThePluginId(): void
@@ -50,102 +69,102 @@ class SettingsTest extends TestCase
 
     public function testProviderRoundTrip(): void
     {
-        $this->settings->setProvider(\ilAuthGuardSettings::PROVIDER_RECAPTCHA);
+        $this->settings->setProvider(\ilAuthGuardProviderRecaptcha::ID);
 
-        $this->assertSame(\ilAuthGuardSettings::PROVIDER_RECAPTCHA, $this->settings->getProvider());
+        $this->assertSame(\ilAuthGuardProviderRecaptcha::ID, $this->settings->getProvider());
         $this->assertSame("recaptcha", $this->rows["provider"]);
     }
 
     public function testUnknownProviderIsRefused(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->settings->setProvider("hcaptcha");
+        $this->settings->setProvider("friendly");
     }
 
     public function testUnknownStoredProviderReadsAsAltcha(): void
     {
         $this->rows["provider"] = "something";
 
-        $this->assertSame(\ilAuthGuardSettings::PROVIDER_ALTCHA, $this->settings->getProvider());
+        $this->assertSame(\ilAuthGuardProviderAltcha::ID, $this->settings->getProvider());
     }
 
     public function testRecaptchaWithoutKeysFallsBackToAltchaInEffect(): void
     {
-        $this->settings->setProvider(\ilAuthGuardSettings::PROVIDER_RECAPTCHA);
-        $this->assertSame(\ilAuthGuardSettings::PROVIDER_ALTCHA, $this->settings->getEffectiveProvider());
+        $this->settings->setProvider(\ilAuthGuardProviderRecaptcha::ID);
+        $this->assertSame(\ilAuthGuardProviderAltcha::ID, $this->settings->getEffectiveProvider());
 
-        $this->settings->setRecaptchaSiteKey(self::SITE_KEY);
-        $this->assertSame(\ilAuthGuardSettings::PROVIDER_ALTCHA, $this->settings->getEffectiveProvider());
+        $this->settings->setProviderValue("recaptcha", "site_key", self::SITE_KEY);
+        $this->assertSame(\ilAuthGuardProviderAltcha::ID, $this->settings->getEffectiveProvider());
 
-        $this->settings->setRecaptchaSecretKey(self::SECRET_KEY);
-        $this->assertSame(\ilAuthGuardSettings::PROVIDER_RECAPTCHA, $this->settings->getEffectiveProvider());
+        $this->settings->setProviderSecret("recaptcha", "secret_key", self::SECRET_KEY);
+        $this->assertSame(\ilAuthGuardProviderRecaptcha::ID, $this->settings->getEffectiveProvider());
     }
 
     public function testSecretKeyIsEncryptedAtRest(): void
     {
-        $this->settings->setRecaptchaSecretKey(self::SECRET_KEY);
+        $this->settings->setProviderSecret("recaptcha", "secret_key", self::SECRET_KEY);
 
         $stored = $this->rows["recaptcha_secret_key"];
         $this->assertStringStartsWith("v1:", $stored);
         $this->assertStringNotContainsString(self::SECRET_KEY, $stored);
-        $this->assertSame(self::SECRET_KEY, $this->settings->getRecaptchaSecretKey());
-        $this->assertTrue($this->settings->hasRecaptchaSecretKey());
+        $this->assertSame(self::SECRET_KEY, $this->settings->getProviderSecret("recaptcha", "secret_key"));
+        $this->assertTrue($this->settings->hasProviderSecret("recaptcha", "secret_key"));
     }
 
     public function testTwoEncryptionsOfTheSameSecretDiffer(): void
     {
-        $this->settings->setRecaptchaSecretKey(self::SECRET_KEY);
+        $this->settings->setProviderSecret("recaptcha", "secret_key", self::SECRET_KEY);
         $first = $this->rows["recaptcha_secret_key"];
-        $this->settings->setRecaptchaSecretKey(self::SECRET_KEY);
+        $this->settings->setProviderSecret("recaptcha", "secret_key", self::SECRET_KEY);
 
         $this->assertNotSame($first, $this->rows["recaptcha_secret_key"]);
     }
 
     public function testEmptySecretKeepsTheStoredOne(): void
     {
-        $this->settings->setRecaptchaSecretKey(self::SECRET_KEY);
+        $this->settings->setProviderSecret("recaptcha", "secret_key", self::SECRET_KEY);
         $stored = $this->rows["recaptcha_secret_key"];
 
-        $this->settings->setRecaptchaSecretKey("");
+        $this->settings->setProviderSecret("recaptcha", "secret_key", "");
 
         $this->assertSame($stored, $this->rows["recaptcha_secret_key"]);
-        $this->assertSame(self::SECRET_KEY, $this->settings->getRecaptchaSecretKey());
+        $this->assertSame(self::SECRET_KEY, $this->settings->getProviderSecret("recaptcha", "secret_key"));
     }
 
     public function testTheKeyIsCreatedOnceAndReused(): void
     {
-        $this->settings->setRecaptchaSecretKey(self::SECRET_KEY);
+        $this->settings->setProviderSecret("recaptcha", "secret_key", self::SECRET_KEY);
         $key_file = $this->files["authgrd/encryption.sec"];
 
         $other = new \ilAuthGuardSettings($this->makeStore(), $this->makeStorage());
-        $other->setRecaptchaSecretKey("ANOTHERSECRETKEYOFTHEGOOGLESHAPE");
+        $other->setProviderSecret("recaptcha", "secret_key", "ANOTHERSECRETKEYOFTHEGOOGLESHAPE");
 
         $this->assertSame($key_file, $this->files["authgrd/encryption.sec"]);
     }
 
     public function testMissingEncryptionKeyFailsInsteadOfReturningGarbage(): void
     {
-        $this->settings->setRecaptchaSecretKey(self::SECRET_KEY);
+        $this->settings->setProviderSecret("recaptcha", "secret_key", self::SECRET_KEY);
         $this->files = [];
 
         $this->expectException(\RuntimeException::class);
-        $this->settings->getRecaptchaSecretKey();
+        $this->settings->getProviderSecret("recaptcha", "secret_key");
     }
 
     public function testTamperedSecretFailsToDecrypt(): void
     {
-        $this->settings->setRecaptchaSecretKey(self::SECRET_KEY);
+        $this->settings->setProviderSecret("recaptcha", "secret_key", self::SECRET_KEY);
         $this->rows["recaptcha_secret_key"] = "v1:" . base64_encode(str_repeat("x", 60));
 
         $this->expectException(\RuntimeException::class);
-        $this->settings->getRecaptchaSecretKey();
+        $this->settings->getProviderSecret("recaptcha", "secret_key");
     }
 
     public function testValueWithoutPrefixIsReadAsPlaintext(): void
     {
         $this->rows["recaptcha_secret_key"] = self::SECRET_KEY;
 
-        $this->assertSame(self::SECRET_KEY, $this->settings->getRecaptchaSecretKey());
+        $this->assertSame(self::SECRET_KEY, $this->settings->getProviderSecret("recaptcha", "secret_key"));
     }
 
     public function testAskingWhetherASecretIsStoredDoesNotTouchTheFilesystem(): void
@@ -157,30 +176,30 @@ class SettingsTest extends TestCase
         $this->rows["recaptcha_secret_key"] = "v1:abc";
         $this->rows["recaptcha_site_key"] = self::SITE_KEY;
 
-        $this->assertTrue($settings->hasRecaptchaSecretKey());
-        $this->assertTrue($settings->isRecaptchaConfigured());
+        $this->assertTrue($settings->hasProviderSecret("recaptcha", "secret_key"));
+        $this->assertTrue($this->isRecaptchaConfigured($settings));
     }
 
     public function testDeleteAllRemovesTheRows(): void
     {
-        $this->settings->setProvider(\ilAuthGuardSettings::PROVIDER_RECAPTCHA);
-        $this->settings->setRecaptchaSiteKey(self::SITE_KEY);
-        $this->settings->setRecaptchaSecretKey(self::SECRET_KEY);
+        $this->settings->setProvider(\ilAuthGuardProviderRecaptcha::ID);
+        $this->settings->setProviderValue("recaptcha", "site_key", self::SITE_KEY);
+        $this->settings->setProviderSecret("recaptcha", "secret_key", self::SECRET_KEY);
 
         $this->settings->deleteAll();
 
         $this->assertSame([], $this->rows);
-        $this->assertSame(\ilAuthGuardSettings::PROVIDER_ALTCHA, $this->settings->getProvider());
+        $this->assertSame(\ilAuthGuardProviderAltcha::ID, $this->settings->getProvider());
     }
 
     public function testAltchaNeedsNoKeys(): void
     {
-        $this->assertSame([], \ilAuthGuardSettings::validate("altcha", "", "", false));
+        $this->assertSame([], $this->validate("altcha", "", "", false));
     }
 
     public function testRecaptchaWithoutKeysIsRefused(): void
     {
-        $errors = \ilAuthGuardSettings::validate("recaptcha", "", "", false);
+        $errors = $this->validate("recaptcha", "", "", false);
 
         $this->assertSame(
             ["recaptcha_site_key" => "cfg_err_site_key", "recaptcha_secret_key" => "cfg_err_secret_key"],
@@ -190,34 +209,34 @@ class SettingsTest extends TestCase
 
     public function testRecaptchaWithoutTheSecretKeyIsRefused(): void
     {
-        $errors = \ilAuthGuardSettings::validate("recaptcha", self::SITE_KEY, "", false);
+        $errors = $this->validate("recaptcha", self::SITE_KEY, "", false);
 
         $this->assertSame(["recaptcha_secret_key" => "cfg_err_secret_key"], $errors);
     }
 
     public function testRecaptchaWithoutTheSiteKeyIsRefusedEvenWithAStoredSecret(): void
     {
-        $errors = \ilAuthGuardSettings::validate("recaptcha", "", "", true);
+        $errors = $this->validate("recaptcha", "", "", true);
 
         $this->assertSame(["recaptcha_site_key" => "cfg_err_site_key"], $errors);
     }
 
     public function testStoredSecretMayBeLeftEmpty(): void
     {
-        $this->assertSame([], \ilAuthGuardSettings::validate("recaptcha", self::SITE_KEY, "", true));
+        $this->assertSame([], $this->validate("recaptcha", self::SITE_KEY, "", true));
     }
 
     public function testBothKeysGivenIsValid(): void
     {
         $this->assertSame(
             [],
-            \ilAuthGuardSettings::validate("recaptcha", self::SITE_KEY, self::SECRET_KEY, false)
+            $this->validate("recaptcha", self::SITE_KEY, self::SECRET_KEY, false)
         );
     }
 
     public function testMalformedKeysAreRefused(): void
     {
-        $errors = \ilAuthGuardSettings::validate("recaptcha", "short", "has space and \"quotes\"", true);
+        $errors = $this->validate("recaptcha", "short", "has space and \"quotes\"", true);
 
         $this->assertSame(
             ["recaptcha_site_key" => "cfg_err_site_key", "recaptcha_secret_key" => "cfg_err_secret_key"],
@@ -227,14 +246,14 @@ class SettingsTest extends TestCase
 
     public function testKeyWithATrailingNewlineIsRefused(): void
     {
-        $errors = \ilAuthGuardSettings::validate("recaptcha", self::SITE_KEY . "\n", self::SECRET_KEY, false);
+        $errors = $this->validate("recaptcha", self::SITE_KEY . "\n", self::SECRET_KEY, false);
 
         $this->assertArrayHasKey("recaptcha_site_key", $errors);
     }
 
     public function testUnknownProviderIsRefusedByTheValidation(): void
     {
-        $errors = \ilAuthGuardSettings::validate("other", self::SITE_KEY, self::SECRET_KEY, true);
+        $errors = $this->validate("other", self::SITE_KEY, self::SECRET_KEY, true);
 
         $this->assertSame(["provider" => "cfg_err_provider"], $errors);
     }

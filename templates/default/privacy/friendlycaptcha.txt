@@ -1,0 +1,11 @@
+Protection of forms against automated abuse (Friendly Captcha)
+
+This website uses Friendly Captcha on its forms to tell human visitors from automated programs, and so to protect the website and its users against spam and abuse. Friendly Captcha is provided by Friendly Captcha GmbH, Germany.
+
+When a visitor reaches a page with a protected form, the visitor's browser solves a small puzzle in the background and transfers connection data, environment data, interaction data and functional data to Friendly Captcha. The data are used only to identify and handle potential bots and risks. Friendly Captcha states that IP addresses are anonymised with a one-way hash function before they are stored, and that it sets no HTTP cookies.
+
+Data controller: [name and contact details of the controller]. Friendly Captcha acts as a data processor on our behalf. Friendly Captcha states that all data stays in the European Union and that it uses EU sub-processors only. [If the EU endpoint is selected in the AuthGuard settings, requests are processed within the EU; otherwise confirm the processing location with the vendor.] [Data processing agreement: to be concluded or confirmed.]
+
+Legal basis: Art. 6(1)(f) GDPR, our legitimate interest in the security of the website and in blocking abusive use. [To be settled by the data protection officer: whether consent is required under the ePrivacy rules for the Friendly Captcha script and any similar technologies; adapt this paragraph accordingly.]
+
+More information: https://friendlycaptcha.com/legal/privacy-end-users/

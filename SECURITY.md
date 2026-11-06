@@ -33,3 +33,8 @@ Known limits, not vulnerabilities:
 - the submit-timing check is defeated by inserting a delay
 - no check here proves a visitor is human: they raise the cost of untargeted, high-volume
   automation, which is the threat they were built for
+- with the optional setting "Accept submits when the vendor cannot be reached" on, a visitor who
+  can make the vendor unreachable for the server skips that provider's challenge; timing and
+  honeypot still apply and every such submit is logged. The setting is off by default
+- the data an external provider (Google reCAPTCHA, Cloudflare Turnstile, hCaptcha, Friendly Captcha)
+  receives, and the weaknesses of that vendor's own challenge: report those to the vendor

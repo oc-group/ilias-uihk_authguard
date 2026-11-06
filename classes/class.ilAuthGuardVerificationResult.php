@@ -40,6 +40,18 @@ class ilAuthGuardVerificationResult
     public const REASON_RECAPTCHA = "recaptcha";
 
     /** @var string */
+    public const REASON_RECAPTCHA3 = "recaptcha3";
+
+    /** @var string */
+    public const REASON_TURNSTILE = "turnstile";
+
+    /** @var string */
+    public const REASON_HCAPTCHA = "hcaptcha";
+
+    /** @var string */
+    public const REASON_FRIENDLY_CAPTCHA = "friendlycaptcha";
+
+    /** @var string */
     public const REASON_MISSING_STATE = "missing_state";
 
     /** @var string */

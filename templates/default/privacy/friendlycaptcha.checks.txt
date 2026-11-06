@@ -1,0 +1,7 @@
+Fill in the name and contact details of the data controller where the draft says [name and contact details of the controller].
+Request the data processing agreement from Friendly Captcha, conclude it, and then remove the bracketed note about the agreement from the draft.
+State that the processing stays within the EU only if the EU endpoint is selected in the AuthGuard settings and enabled for the site key in the Friendly Captcha dashboard (Advanced or Enterprise plan); otherwise delete the bracketed EU sentence and confirm the processing location with the vendor.
+Check the vendor's statements about EU sub-processors, hashed IP addresses and the absence of HTTP cookies against https://friendlycaptcha.com/legal/gdpr/
+Decide with the data protection officer whether consent under the ePrivacy rules is needed for the provider's script and for any cookies or similar technologies, whether the cookie banner of this site must hold the script back until consent is given, and replace the bracketed ePrivacy sentence with the result.
+Translate the draft into the language of the privacy policy of this site, remove every square bracket and adapt the wording to the rest of the policy.
+Check the vendor's own privacy documents (linked in the draft) on the day you publish the text: the vendor may have changed its roles, locations or safeguards since this draft was written.

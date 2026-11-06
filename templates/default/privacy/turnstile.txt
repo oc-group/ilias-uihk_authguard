@@ -1,0 +1,11 @@
+Protection of forms against automated abuse (Cloudflare Turnstile)
+
+This website uses Cloudflare Turnstile on its forms to tell human visitors from automated programs, and so to protect the website and its users against spam and abuse. Turnstile is provided by Cloudflare, Inc. [country of the vendor, to be completed from the vendor's policy].
+
+When a visitor reaches a page with a protected form, Turnstile processes client-side signals such as the client IP address, the TLS fingerprint, the User-Agent header and the sitekey with its associated origin, and sends them to Cloudflare.
+
+Data controller: [name and contact details of the controller]. Cloudflare acts as a data processor on our behalf for the signals it processes to provide the Turnstile service, under the Cloudflare data processing addendum (https://www.cloudflare.com/cloudflare-customer-dpa/). For the signals it processes to improve its bot detection, Cloudflare acts as a controller. Transfers outside the European Economic Area are governed by the safeguards of that addendum, which provides for the EU standard contractual clauses and the Data Privacy Framework. [Location of the processing: to be completed.]
+
+Legal basis: Art. 6(1)(f) GDPR, our legitimate interest in the security of the website and in blocking abusive use. [To be settled by the data protection officer: whether consent is required under the ePrivacy rules for the Turnstile script and any cookies or similar technologies; adapt this paragraph accordingly.]
+
+More information: https://www.cloudflare.com/en-gb/turnstile-privacy-policy/ and https://www.cloudflare.com/en-gb/cookie-policy/

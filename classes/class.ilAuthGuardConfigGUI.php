@@ -12,9 +12,13 @@
 
 declare(strict_types=1);
 
+use ILIAS\UI\Component\Component;
+use ILIAS\UI\Component\Input\Container\Form\Standard;
+
 /**
- * Configuration screen: a read-only list of the checks in force and the
- * choice of the challenge provider. The thresholds are not settings.
+ * Configuration screen: a read-only list of the checks in force, the
+ * form for the challenge provider and the draft privacy texts. The
+ * thresholds are not settings.
  *
  * @ilCtrl_isCalledBy ilAuthGuardConfigGUI: ilObjComponentSettingsGUI
  */
@@ -44,11 +48,29 @@ class ilAuthGuardConfigGUI extends ilPluginConfigGUI implements ilCtrlSecurityIn
     /** @var ilTabsGUI */
     private ilTabsGUI $tabs;
 
+    /** @var \ILIAS\UI\Factory */
+    private \ILIAS\UI\Factory $ui_factory;
+
+    /** @var \ILIAS\UI\Renderer */
+    private \ILIAS\UI\Renderer $ui_renderer;
+
+    /** @var \Psr\Http\Message\ServerRequestInterface */
+    private \Psr\Http\Message\ServerRequestInterface $request;
+
     /** @var ilAuthGuardPlugin */
     private ilAuthGuardPlugin $plugin;
 
     /** @var ilAuthGuardSettings */
     private ilAuthGuardSettings $settings;
+
+    /** @var ilAuthGuardProviderRegistry */
+    private ilAuthGuardProviderRegistry $registry;
+
+    /** @var ilAuthGuardConfigForm */
+    private ilAuthGuardConfigForm $form_builder;
+
+    /** @var ilAuthGuardPrivacyDrafts */
+    private ilAuthGuardPrivacyDrafts $privacy_drafts;
 
     /** @var \ilLogger */
     private \ilLogger $logger;
@@ -64,9 +86,25 @@ class ilAuthGuardConfigGUI extends ilPluginConfigGUI implements ilCtrlSecurityIn
         $this->lng = $DIC->language();
         $this->tpl = $DIC->ui()->mainTemplate();
         $this->tabs = $DIC->tabs();
+        $this->ui_factory = $DIC->ui()->factory();
+        $this->ui_renderer = $DIC->ui()->renderer();
+        $this->request = $DIC->http()->request();
         $this->logger = $DIC->logger()->root();
         $this->plugin = ilAuthGuardPlugin::getInstance();
         $this->settings = new ilAuthGuardSettings();
+        $this->registry = ilAuthGuardProviderRegistry::createDefault();
+        $this->form_builder = new ilAuthGuardConfigForm(
+            $this->ui_factory,
+            $DIC->refinery(),
+            $this->registry,
+            fn (string $lang_key): string => $this->plugin->txt($lang_key)
+        );
+        $this->privacy_drafts = new ilAuthGuardPrivacyDrafts(
+            $this->ui_factory,
+            $this->registry,
+            fn (string $lang_key): string => $this->plugin->txt($lang_key),
+            $this->lng->txt("close")
+        );
     }
 
     /**
@@ -139,12 +177,14 @@ class ilAuthGuardConfigGUI extends ilPluginConfigGUI implements ilCtrlSecurityIn
      */
     protected function configure(): void
     {
-        $this->tpl->setContent($this->initConfigForm()->getHTML());
+        $this->show($this->buildForm(ilAuthGuardConfigState::fromSettings($this->settings, $this->registry)));
     }
 
     /**
      * Validates and stores the choice. Both guards come first: core lets
-     * every reader of the component settings reach this class.
+     * every reader of the component settings reach this class. The form's
+     * own checks run in the fields; a failed one shows the form again with
+     * the error on its field.
      *
      * @return void
      */
@@ -160,196 +200,93 @@ class ilAuthGuardConfigGUI extends ilPluginConfigGUI implements ilCtrlSecurityIn
             return;
         }
 
-        $form = $this->initConfigForm();
-        if (!$form->checkInput()) {
-            $this->showForm($form);
+        $stored = ilAuthGuardConfigState::fromSettings($this->settings, $this->registry);
+
+        try {
+            $form = $this->buildForm($stored)->withRequest($this->request);
+            $data = $form->getData();
+        } catch (\Throwable $e) {
+            $this->refuse($this->lng->txt("form_input_not_valid"));
             return;
         }
 
-        $provider = (string) $form->getInput(ilAuthGuardSettings::FIELD_PROVIDER);
-        $site_key = trim((string) $form->getInput(ilAuthGuardSettings::FIELD_SITE_KEY));
-        $secret_key = trim((string) $form->getInput(ilAuthGuardSettings::FIELD_SECRET_KEY));
-
-        $errors = ilAuthGuardSettings::validate(
-            $provider,
-            $site_key,
-            $secret_key,
-            $this->settings->hasRecaptchaSecretKey()
-        );
-        if ($errors !== []) {
-            $this->showFieldErrors($form, $errors);
+        if ($data === null) {
+            $this->show($form);
             return;
         }
 
-        $this->settings->setProvider($provider);
-        $this->settings->setRecaptchaSiteKey($site_key);
-        $this->settings->setRecaptchaSecretKey($secret_key);
+        $submitted = ilAuthGuardConfigState::fromFormData($data, $this->settings, $this->registry);
+        if ($submitted === null || $submitted->validate($this->registry) !== []) {
+            $this->refuse($this->lng->txt("form_input_not_valid"));
+            return;
+        }
 
-        $this->logSaved($provider);
+        $submitted->applyTo($this->settings, $this->registry);
+
+        $this->logSaved($submitted->provider);
 
         $this->tpl->setOnScreenMessage("success", $this->lng->txt("saved_successfully"), true);
         $this->ctrl->redirect($this, self::CMD_CONFIGURE);
     }
 
     /**
-     * @return ilPropertyFormGUI
+     * The form posts to the save command through ilCtrl's form action,
+     * which carries the request token. Without write access the inputs are
+     * read-only.
+     *
+     * @param ilAuthGuardConfigState $state
+     * @return Standard
      */
-    protected function initConfigForm(): ilPropertyFormGUI
+    private function buildForm(ilAuthGuardConfigState $state): Standard
     {
-        $provider = $this->settings->getProvider();
-
-        $form = new ilPropertyFormGUI();
-        $form->setFormAction($this->ctrl->getFormAction($this));
-        $form->setTitle($this->plugin->txt("plugin_title"));
-
-        $this->addChecklist($form, $this->settings->getEffectiveProvider());
-        $this->addProviderChoice($form, $provider);
-
-        if ($this->hasWriteAccess()) {
-            $form->addCommandButton(self::CMD_SAVE, $this->lng->txt("save"));
-        }
-
-        return $form;
+        return $this->form_builder->build(
+            $this->ctrl->getFormAction($this, self::CMD_SAVE),
+            $state,
+            !$this->hasWriteAccess(),
+            $this->lng->txt("save")
+        );
     }
 
     /**
-     * The checks in force, as ticked read-only boxes. Nothing here is
-     * submitted or stored.
+     * Puts the page together: the checks in force, the form and the draft
+     * privacy texts. The checks and the texts sit outside the form.
      *
-     * @param ilPropertyFormGUI $form
-     * @param string $effective_provider
+     * @param Standard $form
      * @return void
      */
-    private function addChecklist(ilPropertyFormGUI $form, string $effective_provider): void
+    private function show(Standard $form): void
     {
-        $section = new ilFormSectionHeaderGUI();
-        $section->setTitle($this->plugin->txt("cfg_section_checks"));
-        $form->addItem($section);
+        $this->tpl->setContent($this->ui_renderer->render(array_merge(
+            [$this->createChecklist(), $form],
+            $this->privacy_drafts->createComponents()
+        )));
+    }
 
+    /**
+     * The checks that always run, as a read-only list. The challenge
+     * provider is deliberately absent: it is a choice, made in the form, so
+     * a provider added later can never appear in this list.
+     *
+     * @return Component
+     */
+    private function createChecklist(): Component
+    {
         $timing_info = sprintf(
             $this->plugin->txt("cfg_check_timing_info"),
             (string) ilAuthGuardFormProtection::MIN_SUBMIT_INTERVAL_SECONDS
         );
 
-        $rows = [
-            ["timing", "cfg_check_timing", $timing_info, true],
-            ["honeypot", "cfg_check_honeypot", $this->plugin->txt("cfg_check_honeypot_info"), true],
-            [
-                "altcha",
-                "cfg_check_altcha",
-                $this->plugin->txt("cfg_check_altcha_info"),
-                $effective_provider === ilAuthGuardSettings::PROVIDER_ALTCHA,
-            ],
-            [
-                "recaptcha",
-                "cfg_check_recaptcha",
-                $this->plugin->txt("cfg_check_recaptcha_info"),
-                $effective_provider === ilAuthGuardSettings::PROVIDER_RECAPTCHA,
-            ],
-            ["image", "cfg_check_image", $this->plugin->txt("cfg_check_image_info"), true],
-            ["message", "cfg_check_message", $this->plugin->txt("cfg_check_message_info"), true],
+        $items = [
+            $this->plugin->txt("cfg_check_timing") => $timing_info,
+            $this->plugin->txt("cfg_check_honeypot") => $this->plugin->txt("cfg_check_honeypot_info"),
+            $this->plugin->txt("cfg_check_image") => $this->plugin->txt("cfg_check_image_info"),
+            $this->plugin->txt("cfg_check_message") => $this->plugin->txt("cfg_check_message_info"),
         ];
 
-        foreach ($rows as [$name, $title_key, $info, $active]) {
-            $item = new ilCheckboxInputGUI($this->plugin->txt($title_key), "check_" . $name);
-            $item->setChecked($active);
-            $item->setDisabled(true);
-            $item->setInfo($info);
-            $form->addItem($item);
-        }
-    }
-
-    /**
-     * @param ilPropertyFormGUI $form
-     * @param string $provider the stored choice
-     * @return void
-     */
-    private function addProviderChoice(ilPropertyFormGUI $form, string $provider): void
-    {
-        $section = new ilFormSectionHeaderGUI();
-        $section->setTitle($this->plugin->txt("cfg_section_provider"));
-        $form->addItem($section);
-
-        $choice = new ilRadioGroupInputGUI($this->plugin->txt("cfg_provider"), ilAuthGuardSettings::FIELD_PROVIDER);
-        $choice->setRequired(true);
-        $choice->setValue($provider);
-
-        $altcha = new ilRadioOption(
-            $this->plugin->txt("cfg_provider_altcha"),
-            ilAuthGuardSettings::PROVIDER_ALTCHA,
-            $this->plugin->txt("cfg_provider_altcha_info")
+        return $this->ui_factory->panel()->standard(
+            $this->plugin->txt("cfg_section_checks"),
+            $this->ui_factory->listing()->descriptive($items)
         );
-        $choice->addOption($altcha);
-
-        $recaptcha = new ilRadioOption(
-            $this->plugin->txt("cfg_provider_recaptcha"),
-            ilAuthGuardSettings::PROVIDER_RECAPTCHA,
-            $this->plugin->txt("cfg_provider_recaptcha_info")
-        );
-
-        $site_key = new ilTextInputGUI(
-            $this->plugin->txt("cfg_site_key"),
-            ilAuthGuardSettings::FIELD_SITE_KEY
-        );
-        $site_key->setMaxLength(100);
-        $site_key->setValue($this->settings->getRecaptchaSiteKey());
-        $recaptcha->addSubItem($site_key);
-
-        // Never given a value: the stored key is not sent to the browser.
-        $secret_key = new ilPasswordInputGUI(
-            $this->plugin->txt("cfg_secret_key"),
-            ilAuthGuardSettings::FIELD_SECRET_KEY
-        );
-        $secret_key->setRetype(false);
-        $secret_key->setSkipSyntaxCheck(true);
-        $secret_key->setDisableHtmlAutoComplete(true);
-        $secret_key->setMaxLength(100);
-        $secret_key->setInfo($this->plugin->txt(
-            $this->settings->hasRecaptchaSecretKey() ? "cfg_secret_key_stored" : "cfg_secret_key_info"
-        ));
-        $recaptcha->addSubItem($secret_key);
-
-        $choice->addOption($recaptcha);
-        $form->addItem($choice);
-    }
-
-    /**
-     * Shows the form again with the errors on their fields. The secret key
-     * is not repopulated.
-     *
-     * @param ilPropertyFormGUI $form
-     * @param array<string, string> $errors lang key by form field
-     * @return void
-     */
-    private function showFieldErrors(ilPropertyFormGUI $form, array $errors): void
-    {
-        foreach ($errors as $field => $lang_key) {
-            $item = $form->getItemByPostVar($field);
-            if ($item !== null) {
-                $item->setAlert($this->plugin->txt($lang_key));
-            }
-        }
-
-        $this->showForm($form);
-    }
-
-    /**
-     * Shows a submitted form again with the values the user typed, except
-     * the secret key, which is never sent back to the browser.
-     *
-     * @param ilPropertyFormGUI $form
-     * @return void
-     */
-    private function showForm(ilPropertyFormGUI $form): void
-    {
-        $form->setValuesByPost();
-
-        $secret_key = $form->getItemByPostVar(ilAuthGuardSettings::FIELD_SECRET_KEY);
-        if ($secret_key instanceof ilPasswordInputGUI) {
-            $secret_key->setValue("");
-        }
-
-        $this->tpl->setContent($form->getHTML());
     }
 
     /**
