@@ -15,7 +15,7 @@ declare(strict_types=1);
 /**
  * What is specific to one external provider in its draft privacy text and in
  * the list of what to check before using it. The common structure and the
- * common checks live in templates/default/tpl.privacy_draft.txt, filled in
+ * common checks live in templates/default/tpl.privacy_draft.html, filled in
  * by ilAuthGuardPrivacyText. Every value is English plain text.
  */
 final class ilAuthGuardPrivacyFacts

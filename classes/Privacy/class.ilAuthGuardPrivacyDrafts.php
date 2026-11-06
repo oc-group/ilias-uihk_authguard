@@ -37,23 +37,29 @@ final class ilAuthGuardPrivacyDrafts
     /** @var string label of the button that closes the modal */
     private string $close_label;
 
+    /** @var ilAuthGuardPrivacyText builds the drafts and the checks from the template */
+    private ilAuthGuardPrivacyText $text;
+
     /**
      * @param UIFactory $ui
      * @param ilAuthGuardProviderRegistry $registry
      * @param Closure(string): string $txt
      * @param string $close_label
+     * @param ilAuthGuardPrivacyText $text
      * @return void
      */
     public function __construct(
         UIFactory $ui,
         ilAuthGuardProviderRegistry $registry,
         Closure $txt,
-        string $close_label
+        string $close_label,
+        ilAuthGuardPrivacyText $text
     ) {
         $this->ui = $ui;
         $this->registry = $registry;
         $this->txt = $txt;
         $this->close_label = $close_label;
+        $this->text = $text;
     }
 
     /**
@@ -78,10 +84,10 @@ final class ilAuthGuardPrivacyDrafts
                 "<h4>" . $this->escape($this->txt("cfg_provider_" . $provider->getId())) . "</h4>"
                 . '<textarea class="form-control" rows="18" readonly="readonly" onfocus="this.select()"'
                 . ' aria-label="' . $this->escape($this->txt("cfg_privacy_draft_label")) . '">'
-                . $this->escape(ilAuthGuardPrivacyText::getDraft($facts)) . "</textarea>"
+                . $this->escape($this->text->getDraft($facts)) . "</textarea>"
                 . "<h5>" . $this->escape($this->txt("cfg_privacy_checks_title")) . "</h5>"
             );
-            $content[] = $this->ui->listing()->unordered(ilAuthGuardPrivacyText::getChecks($facts));
+            $content[] = $this->ui->listing()->unordered($this->text->getChecks($facts));
         }
 
         if (!$found) {

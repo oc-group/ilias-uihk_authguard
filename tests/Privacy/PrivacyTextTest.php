@@ -17,6 +17,8 @@ namespace AuthGuard\Tests;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__ . "/../PlainTemplate.php";
+
 /**
  * The draft privacy texts of the external providers, the lists of what to
  * check, and the one modal that shows them.
@@ -36,6 +38,27 @@ class PrivacyTextTest extends TestCase
         }
 
         return $ids;
+    }
+
+    /**
+     * @return string absolute path of the templates folder of the plugin
+     */
+    private static function templates(): string
+    {
+        return __DIR__ . "/../../templates/";
+    }
+
+    /**
+     * The text builder on a plain template object, loaded from the same file
+     * production loads (the TEMPLATE constant).
+     *
+     * @return \ilAuthGuardPrivacyText
+     */
+    private static function text(): \ilAuthGuardPrivacyText
+    {
+        return new \ilAuthGuardPrivacyText(
+            static fn (string $file): object => PlainTemplate::load(self::templates() . $file)
+        );
     }
 
     /**
@@ -72,35 +95,169 @@ class PrivacyTextTest extends TestCase
 
     public function testThereIsOneTemplateAndNoPerProviderFiles(): void
     {
-        $this->assertFileExists(\ilAuthGuardPrivacyText::getTemplatePath());
-        $this->assertDirectoryDoesNotExist(__DIR__ . "/../../templates/default/privacy");
-        $this->assertSame([], glob(__DIR__ . "/../../templates/default/*.it.txt"));
-        $this->assertCount(1, glob(__DIR__ . "/../../templates/default/*.txt"));
+        $this->assertSame("default/tpl.privacy_draft.html", \ilAuthGuardPrivacyText::TEMPLATE);
+        $this->assertFileExists(self::templates() . \ilAuthGuardPrivacyText::TEMPLATE);
+        $this->assertDirectoryDoesNotExist(self::templates() . "default/privacy");
+        $this->assertSame([], glob(self::templates() . "default/*.it.txt"));
+        $this->assertSame([], glob(self::templates() . "default/*.txt"), "no plain text template is left");
+        $this->assertSame(
+            ["tpl.privacy_draft.html"],
+            array_map("basename", glob(self::templates() . "default/*privacy*"))
+        );
+    }
+
+    public function testTheFactoryGetsTheTemplateFileOfTheConstant(): void
+    {
+        $asked = [];
+        $text = new \ilAuthGuardPrivacyText(static function (string $file) use (&$asked): object {
+            $asked[] = $file;
+
+            return PlainTemplate::load(self::templates() . $file);
+        });
+
+        $text->getDraft(self::facts("turnstile"));
+        $text->getChecks(self::facts("turnstile"));
+
+        $this->assertSame([\ilAuthGuardPrivacyText::TEMPLATE, \ilAuthGuardPrivacyText::TEMPLATE], $asked);
+    }
+
+    public function testTheTemplateIsInTheIlTemplateSyntaxWithoutTheOldMarkers(): void
+    {
+        $template = (string) file_get_contents(self::templates() . \ilAuthGuardPrivacyText::TEMPLATE);
+
+        $this->assertStringNotContainsString("{{", $template);
+        $this->assertStringNotContainsString("@@", $template);
+        foreach (["draft", "checks", "specific_check"] as $block) {
+            $this->assertSame(1, substr_count($template, "<!-- BEGIN " . $block . " -->"), $block);
+            $this->assertSame(1, substr_count($template, "<!-- END " . $block . " -->"), $block);
+        }
+        preg_match_all("/\\{([A-Z0-9_]+)\\}/", $template, $found);
+        $variables = array_unique($found[1]);
+        sort($variables);
+        $this->assertSame(
+            ["ABOUT", "CONSENT_SUBJECT", "CONTROLLER", "MORE_INFORMATION", "NAME", "PROCESSING", "PURPOSE",
+                "SERVICE", "SPECIFIC_CHECK"],
+            $variables
+        );
     }
 
     #[DataProvider("externalIds")]
-    public function testNoTemplateMarkerIsLeftUnfilled(string $id): void
+    public function testNoTemplateVariableIsLeftUnfilled(string $id): void
     {
-        $text = \ilAuthGuardPrivacyText::getDraft(self::facts($id)) . "\n"
-            . implode("\n", \ilAuthGuardPrivacyText::getChecks(self::facts($id)));
+        $text = self::text()->getDraft(self::facts($id)) . "\n"
+            . implode("\n", self::text()->getChecks(self::facts($id)));
 
-        $this->assertStringNotContainsString("{{", $text, $id);
+        $this->assertDoesNotMatchRegularExpression("/\\{[A-Z0-9_]+\\}|__[a-z_]+__|BEGIN |END |<!--/", $text, $id);
         $this->assertStringNotContainsString("@@", $text, $id);
     }
 
-    public function testAValueIsNeverScannedForMarkersAgain(): void
+    public function testAValueIsPassedThroughUnchanged(): void
     {
-        $facts = new \ilAuthGuardPrivacyFacts("{{ABOUT}}", "S", "P", "A{{NAME}}", "X", "C", "T", "M", ["k {{NAME}}"]);
+        $service = "S [x] \"q\" 'a' <b> & \$1 \\1";
+        $facts = new \ilAuthGuardPrivacyFacts(
+            "N {X}",
+            $service,
+            "P",
+            "A{X}{Y_Z}",
+            "X",
+            "C",
+            "T",
+            "M",
+            ["k {X} {Y}", "[second]"]
+        );
 
-        $this->assertStringContainsString("({{ABOUT}})", \ilAuthGuardPrivacyText::getDraft($facts));
-        $this->assertStringContainsString("A{{NAME}}", \ilAuthGuardPrivacyText::getDraft($facts));
-        $this->assertContains("k {{NAME}}", \ilAuthGuardPrivacyText::getChecks($facts));
+        $draft = self::text()->getDraft($facts);
+        $this->assertStringContainsString("(N {X})", $draft);
+        $this->assertStringContainsString($service, $draft);
+        $this->assertStringContainsString("A{X}{Y_Z}", $draft);
+        $this->assertSame("k {X} {Y}", self::text()->getChecks($facts)[1]);
+        $this->assertSame("[second]", self::text()->getChecks($facts)[2]);
+    }
+
+    /**
+     * The template engine replaces the variables one after the other on the
+     * block text, so a value that itself held the name of a variable set
+     * later, such as {ABOUT}, would be substituted. An unknown name in braces
+     * is kept (see the test above). No fact has any brace, only square
+     * brackets, and this keeps it so.
+     */
+    #[DataProvider("externalIds")]
+    public function testNoFactHasABrace(string $id): void
+    {
+        $facts = self::facts($id);
+        $all = implode("
+", [$facts->name, $facts->service, $facts->purpose, $facts->about, $facts->processing,
+            $facts->controller, $facts->consent_subject, $facts->more_information, ...$facts->checks]);
+
+        $this->assertStringNotContainsString("{", $all, $id);
+        $this->assertStringNotContainsString("}", $all, $id);
+    }
+
+    public function testTheChecksComeOutInTheOrderCommonSpecificCommon(): void
+    {
+        $facts = new \ilAuthGuardPrivacyFacts("N", "S", "P", "A", "X", "C", "T", "M", ["first specific", "second specific"]);
+        $checks = self::text()->getChecks($facts);
+
+        $this->assertCount(6, $checks);
+        $this->assertStringStartsWith("Fill in the name and contact details of the data controller", $checks[0]);
+        $this->assertSame("first specific", $checks[1]);
+        $this->assertSame("second specific", $checks[2]);
+        $this->assertStringStartsWith("Decide with the data protection officer", $checks[3]);
+        $this->assertStringStartsWith("Translate the draft", $checks[4]);
+        $this->assertStringStartsWith("Check the vendor's own privacy documents", $checks[5]);
+    }
+
+    public function testWithoutSpecificChecksOnlyTheFourCommonOnesRemain(): void
+    {
+        $checks = self::text()->getChecks(new \ilAuthGuardPrivacyFacts("N", "S", "P", "A", "X", "C", "T", "M"));
+
+        $this->assertCount(4, $checks);
+    }
+
+    public function testTheDraftKeepsItsParagraphBreaksAndHasNoSurroundingBlankLines(): void
+    {
+        $draft = self::text()->getDraft(new \ilAuthGuardPrivacyFacts("N", "S", "P", "A", "X", "C", "T", "M"));
+
+        $this->assertSame(
+            "Protection of forms against automated abuse (N)\n\n"
+            . "This website uses S on its forms to P, and so to protect the website and its users against spam and abuse. A\n\n"
+            . "X\n\n"
+            . "Data controller: [name and contact details of the controller]. C\n\n"
+            . "Legal basis: Art. 6(1)(f) GDPR, our legitimate interest in the security of the website and in blocking abusive use. "
+            . "[To be settled by the data protection officer: whether consent is required under the ePrivacy rules for T; "
+            . "adapt this paragraph accordingly.]\n\n"
+            . "More information: M",
+            $draft
+        );
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: bool, 2: bool}>
+     */
+    public static function optionalNotes(): array
+    {
+        return [
+            "recaptcha3" => ["recaptcha3", true, false],
+            "friendlycaptcha" => ["friendlycaptcha", false, true],
+            "turnstile" => ["turnstile", false, false],
+            "hcaptcha" => ["hcaptcha", false, false],
+            "recaptcha" => ["recaptcha", false, false],
+        ];
+    }
+
+    #[DataProvider("optionalNotes")]
+    public function testTheOptionalNotesAppearOnlyForTheProvidersThatUseThem(string $id, bool $badge, bool $eu): void
+    {
+        $text = self::text()->getDraft(self::facts($id));
+
+        $this->assertSame($badge, str_contains($text, "[If the reCAPTCHA badge is hidden"), $id);
+        $this->assertSame($eu, str_contains($text, "[If the EU endpoint is selected"), $id);
     }
 
     #[DataProvider("externalIds")]
     public function testEveryDraftIsEnglishAndComplete(string $id): void
     {
-        $text = (string) \ilAuthGuardPrivacyText::getDraft(self::facts($id));
+        $text = (string) self::text()->getDraft(self::facts($id));
 
         $this->assertGreaterThan(120, str_word_count($text), $id);
         $this->assertStringContainsString("This website uses", $text);
@@ -114,7 +271,7 @@ class PrivacyTextTest extends TestCase
     #[DataProvider("externalIds")]
     public function testEveryProviderHasAListOfWhatToCheck(string $id): void
     {
-        $checks = \ilAuthGuardPrivacyText::getChecks(self::facts($id));
+        $checks = self::text()->getChecks(self::facts($id));
         $all = implode("\n", $checks);
 
         $this->assertGreaterThanOrEqual(7, count($checks), $id);
@@ -128,8 +285,8 @@ class PrivacyTextTest extends TestCase
     #[DataProvider("externalIds")]
     public function testEveryBracketedPlaceholderOfADraftIsMirroredInTheChecks(string $id): void
     {
-        $draft = (string) \ilAuthGuardPrivacyText::getDraft(self::facts($id));
-        $all = implode("\n", \ilAuthGuardPrivacyText::getChecks(self::facts($id)));
+        $draft = (string) self::text()->getDraft(self::facts($id));
+        $all = implode("\n", self::text()->getChecks(self::facts($id)));
         preg_match_all("/\\[([^\\]]+)\\]/", $draft, $matches);
 
         $this->assertNotEmpty($matches[1]);
@@ -171,13 +328,13 @@ class PrivacyTextTest extends TestCase
     #[DataProvider("specificChecks")]
     public function testProviderSpecificChecks(string $id, string $needle): void
     {
-        $this->assertStringContainsString($needle, implode("\n", \ilAuthGuardPrivacyText::getChecks(self::facts($id))));
+        $this->assertStringContainsString($needle, implode("\n", self::text()->getChecks(self::facts($id))));
     }
 
     #[DataProvider("externalIds")]
     public function testTextsContainNoDashes(string $id): void
     {
-        $text = (string) \ilAuthGuardPrivacyText::getDraft(self::facts($id)) . "\n" . implode("\n", \ilAuthGuardPrivacyText::getChecks(self::facts($id)));
+        $text = (string) self::text()->getDraft(self::facts($id)) . "\n" . implode("\n", self::text()->getChecks(self::facts($id)));
 
         $this->assertStringNotContainsString("--", $text);
         $this->assertStringNotContainsString("\u{2014}", $text);
@@ -186,7 +343,7 @@ class PrivacyTextTest extends TestCase
 
     public function testHcaptchaDraftStatesTheConfirmedFacts(): void
     {
-        $text = (string) \ilAuthGuardPrivacyText::getDraft(self::facts("hcaptcha"));
+        $text = (string) self::text()->getDraft(self::facts("hcaptcha"));
 
         foreach (
             ["Intuition Machines, Inc.", "Delaware", "data processor", "standard contractual clauses",
@@ -199,7 +356,7 @@ class PrivacyTextTest extends TestCase
 
     public function testFriendlyCaptchaDraftStatesTheConfirmedFacts(): void
     {
-        $text = (string) \ilAuthGuardPrivacyText::getDraft(self::facts("friendlycaptcha"));
+        $text = (string) self::text()->getDraft(self::facts("friendlycaptcha"));
 
         foreach (
             ["Friendly Captcha GmbH, Germany", "data processor", "European Union", "one-way hash", "no HTTP cookies"] as $fact
@@ -300,7 +457,8 @@ class PrivacyTextTest extends TestCase
             $ui,
             \ilAuthGuardProviderRegistry::createDefault(),
             static fn (string $key): string => "T[" . $key . "]",
-            "Close"
+            "Close",
+            self::text()
         );
         $log["components"] = $drafts->createComponents();
 
@@ -322,7 +480,7 @@ class PrivacyTextTest extends TestCase
         foreach (array_keys(self::externalIds()) as $id) {
             $this->assertStringContainsString("<h4>T[cfg_provider_" . $id . "]</h4>", $html, $id);
             $this->assertStringContainsString(
-                htmlspecialchars((string) \ilAuthGuardPrivacyText::getDraft(self::facts($id)), ENT_QUOTES, "UTF-8"),
+                htmlspecialchars((string) self::text()->getDraft(self::facts($id)), ENT_QUOTES, "UTF-8"),
                 $html,
                 $id
             );
@@ -337,7 +495,7 @@ class PrivacyTextTest extends TestCase
         $log = $this->createDrafts();
 
         $this->assertSame(
-            array_map(static fn (string $id): array => \ilAuthGuardPrivacyText::getChecks(self::facts($id)), array_keys(self::externalIds())),
+            array_map(static fn (string $id): array => self::text()->getChecks(self::facts($id)), array_keys(self::externalIds())),
             $log["lists"]
         );
     }

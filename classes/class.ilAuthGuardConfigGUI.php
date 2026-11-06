@@ -103,7 +103,8 @@ class ilAuthGuardConfigGUI extends ilPluginConfigGUI implements ilCtrlSecurityIn
             $this->ui_factory,
             $this->registry,
             fn (string $lang_key): string => $this->plugin->txt($lang_key),
-            $this->lng->txt("close")
+            $this->lng->txt("close"),
+            ilAuthGuardPrivacyText::createDefault()
         );
     }
 
