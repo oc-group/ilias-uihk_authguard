@@ -12,16 +12,18 @@
 
 declare(strict_types=1);
 
-use ILIAS\UI\Component\Component;
+use ILIAS\UI\Component\Button\Standard as StandardButton;
+use ILIAS\UI\Component\Modal\RoundTrip;
 use ILIAS\UI\Factory as UIFactory;
 
 /**
- * The draft privacy texts as UI components: a heading and one button, and
- * the one modal the button opens. The modal has the notice and the intro at
- * the top and, for each external provider, a section with its name, the
- * draft in a read-only text area and the list of what to check. The
- * components belong below the configuration form, not inside it: a button
- * inside a form submits it, and the modal must not carry form fields.
+ * The draft privacy texts as UI components: one button and the one modal it
+ * opens. The modal has the notice and the intro at the top and, for each
+ * external provider, a section with its name, the draft in a read-only block
+ * and the list of what to check. The button goes into the toolbar of the
+ * configuration screen and the modal into the page content, both outside
+ * the form: a button inside a form submits it, and the modal must not carry
+ * form fields.
  */
 final class ilAuthGuardPrivacyDrafts
 {
@@ -39,6 +41,9 @@ final class ilAuthGuardPrivacyDrafts
 
     /** @var ilAuthGuardPrivacyText builds the drafts and the checks from the template */
     private ilAuthGuardPrivacyText $text;
+
+    /** @var RoundTrip|null|false built on first use; null without drafts */
+    private RoundTrip|null|false $modal = false;
 
     /**
      * @param UIFactory $ui
@@ -63,9 +68,42 @@ final class ilAuthGuardPrivacyDrafts
     }
 
     /**
-     * @return Component[] heading, button and modal; empty without drafts
+     * @return StandardButton|null opens the modal; null without drafts
      */
-    public function createComponents(): array
+    public function createButton(): ?StandardButton
+    {
+        $modal = $this->getModal();
+
+        return $modal === null
+            ? null
+            : $this->ui->button()->standard($this->txt("cfg_privacy_draft_show"), $modal->getShowSignal());
+    }
+
+    /**
+     * @return RoundTrip|null the same object on every call, so the signal of
+     *     the button reaches the modal; null without drafts
+     */
+    public function createModal(): ?RoundTrip
+    {
+        return $this->getModal();
+    }
+
+    /**
+     * @return RoundTrip|null
+     */
+    private function getModal(): ?RoundTrip
+    {
+        if ($this->modal === false) {
+            $this->modal = $this->buildModal();
+        }
+
+        return $this->modal;
+    }
+
+    /**
+     * @return RoundTrip|null
+     */
+    private function buildModal(): ?RoundTrip
     {
         $content = [
             $this->ui->messageBox()->info($this->txt("cfg_privacy_draft_notice")),
@@ -91,18 +129,12 @@ final class ilAuthGuardPrivacyDrafts
         }
 
         if (!$found) {
-            return [];
+            return null;
         }
 
-        $modal = $this->ui->modal()
+        return $this->ui->modal()
             ->roundtrip($this->txt("cfg_privacy_drafts_title"), $content)
             ->withCancelButtonLabel($this->close_label);
-
-        return [
-            $this->ui->legacy("<h3>" . $this->escape($this->txt("cfg_privacy_drafts_title")) . "</h3>"),
-            $this->ui->button()->standard($this->txt("cfg_privacy_draft_show"), $modal->getShowSignal()),
-            $modal,
-        ];
     }
 
     /**
