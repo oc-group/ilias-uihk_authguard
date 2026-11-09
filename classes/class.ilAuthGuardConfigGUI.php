@@ -48,6 +48,9 @@ class ilAuthGuardConfigGUI extends ilPluginConfigGUI implements ilCtrlSecurityIn
     /** @var ilTabsGUI */
     private ilTabsGUI $tabs;
 
+    /** @var ilToolbarGUI */
+    private ilToolbarGUI $toolbar;
+
     /** @var \ILIAS\UI\Factory */
     private \ILIAS\UI\Factory $ui_factory;
 
@@ -86,6 +89,7 @@ class ilAuthGuardConfigGUI extends ilPluginConfigGUI implements ilCtrlSecurityIn
         $this->lng = $DIC->language();
         $this->tpl = $DIC->ui()->mainTemplate();
         $this->tabs = $DIC->tabs();
+        $this->toolbar = $DIC->toolbar();
         $this->ui_factory = $DIC->ui()->factory();
         $this->ui_renderer = $DIC->ui()->renderer();
         $this->request = $DIC->http()->request();
@@ -249,8 +253,9 @@ class ilAuthGuardConfigGUI extends ilPluginConfigGUI implements ilCtrlSecurityIn
     }
 
     /**
-     * Puts the page together: the checks in force, the form and the draft
-     * privacy texts. The checks and the texts sit outside the form.
+     * Puts the page together: the checks in force and the form, with the
+     * button of the draft privacy texts in the toolbar and their modal in the
+     * content. The checks, the button and the modal sit outside the form.
      *
      * @param Standard $form
      * @return void
@@ -258,9 +263,16 @@ class ilAuthGuardConfigGUI extends ilPluginConfigGUI implements ilCtrlSecurityIn
     private function show(Standard $form): void
     {
         $this->tpl->addCss($this->plugin->getRelativeDirectory() . "/css/privacy.css");
-        $this->tpl->setContent($this->ui_renderer->render(
-            [$this->createChecklist(), $form, ...$this->privacy_drafts->createComponents()]
-        ));
+
+        $components = [$this->createChecklist(), $form];
+        $button = $this->privacy_drafts->createButton();
+        $modal = $this->privacy_drafts->createModal();
+        if ($button !== null && $modal !== null) {
+            $this->toolbar->addComponent($button);
+            $components[] = $modal;
+        }
+
+        $this->tpl->setContent($this->ui_renderer->render($components));
     }
 
     /**
