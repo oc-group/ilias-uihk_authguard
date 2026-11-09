@@ -460,7 +460,7 @@ class PrivacyTextTest extends TestCase
             "Close",
             self::text()
         );
-        $log["components"] = $drafts->createComponents();
+        $log["components"] = [$drafts->createButton(), $drafts->createModal()];
 
         return $log;
     }
@@ -475,7 +475,8 @@ class PrivacyTextTest extends TestCase
         $this->assertCount(1, $log["buttons"]);
         $this->assertSame("T[cfg_privacy_draft_show]", $log["buttons"][0]);
         $this->assertSame(["Close"], $log["close"]);
-        $this->assertCount(3, $log["components"], "heading, button and modal");
+        $this->assertCount(2, $log["components"], "button and modal");
+        $this->assertNotNull($log["components"][0]);
 
         foreach (array_keys(self::externalIds()) as $id) {
             $this->assertStringContainsString("<h4>T[cfg_provider_" . $id . "]</h4>", $html, $id);

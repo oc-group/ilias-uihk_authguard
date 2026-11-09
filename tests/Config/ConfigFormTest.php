@@ -368,6 +368,31 @@ class ConfigFormTest extends TestCase
         $this->assertSame("A1B2C3D4E5F6G7H8I9J0K1L2", $settings->getProviderSecret("friendlycaptcha", "api_key"));
     }
 
+    public function testNoProviderInputIsMarkedRequired(): void
+    {
+        // A required input inside a group makes the whole provider option carry the asterisk.
+        foreach ($this->choice($this->build())->getInputs() as $id => $group) {
+            $this->assertFalse($group->isRequired(), $id);
+            foreach ($group->getInputs() as $name => $input) {
+                $this->assertFalse($input->isRequired(), $id . "/" . $name);
+            }
+        }
+    }
+
+    public function testFriendlyCaptchaRefusesAnEmptyEndpointOnItsOwnField(): void
+    {
+        $form = $this->build();
+        $submitted = $this->submit($form, $this->body($form, "friendlycaptcha", [
+            "site_key" => "FCMGEMUD2KTDSQ5H",
+            "api_key" => "A1B2C3D4E5F6G7H8I9J0K1L2",
+            "endpoint" => "",
+        ]));
+        $inputs = $this->choice($submitted)->getInputs()["friendlycaptcha"]->getInputs();
+
+        $this->assertNull($submitted->getData());
+        $this->assertSame("T[cfg_err_endpoint]", $inputs["endpoint"]->getError());
+    }
+
     public function testTheCheckboxRoundTrips(): void
     {
         $settings = $this->makeSettings();
