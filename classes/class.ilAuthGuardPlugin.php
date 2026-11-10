@@ -76,8 +76,8 @@ class ilAuthGuardPlugin extends ilUserInterfaceHookPlugin
             return false;
         }
 
-        // getCurrentClassPath() returns declared class names in mixed case, unlike
-        // most ilCtrl lookups by name; normalize before comparing.
+        // getCurrentClassPath() returns declared class names in mixed case,
+        // unlike most ilCtrl lookups by name; normalize before comparing.
         if (array_map('strtolower', $DIC->ctrl()->getCurrentClassPath()) !== self::REGISTRATION_CLASS_PATH) {
             return false;
         }

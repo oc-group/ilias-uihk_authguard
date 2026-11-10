@@ -26,7 +26,7 @@ abstract: >-
   image fallback is image-only and does not meet WCAG 2.1 success criterion
   1.1.1; installations subject to EN 301 549 should provide an alternative
   registration route. For ILIAS 10 (10.0 and later 10.x), PHP 8.2 or 8.3.
-version: 10.1.4
+version: 10.1.5
 date-released: "2026-11-06"
 license: GPL-3.0-or-later
 repository-code: "https://github.com/oc-group/ilias-uihk_authguard"
