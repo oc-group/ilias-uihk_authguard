@@ -410,7 +410,7 @@ class PrivacyTextTest extends TestCase
     {
         $log = ["roundtrips" => [], "html" => [], "lists" => [], "buttons" => [], "close" => []];
 
-        // On ILIAS 10 the UI factory itself builds the legacy component: legacy(string $content).
+        // The UI factory builds the legacy component itself: legacy(string $html).
         $legacy = function (string $html) use (&$log) {
             $log["html"][] = $html;
 
