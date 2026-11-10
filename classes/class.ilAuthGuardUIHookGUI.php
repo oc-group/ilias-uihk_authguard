@@ -103,7 +103,12 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
         global $DIC;
 
         self::$widget_injected = true;
-        ilAuthGuardHelper::storeFormRenderedTime(microtime(true));
+        // ILIAS prints the page, then writes the session without a lock: the
+        // phrase is issued here (last writer), the image request only reads it.
+        $now = microtime(true);
+        ilAuthGuardHelper::storeFormRenderedTime($now);
+        ilAuthGuardHelper::storeExpectedPhrase(ilAuthGuardHelper::generatePhrase());
+        ilAuthGuardHelper::storeLastGenerationTime($now);
 
         $widget_html = $this->renderWidget($DIC);
         $html = (string) ($a_par["html"] ?? "");
@@ -146,15 +151,22 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
             ilAuthGuardGUI::CMD_SHOW_IMAGE
         );
 
+        $current_src = $dic->ctrl()->getLinkTargetByClass(
+            [ilUIPluginRouterGUI::class, ilAuthGuardGUI::class],
+            ilAuthGuardGUI::CMD_CURRENT_IMAGE
+        );
+
         $main_tpl = $dic->ui()->mainTemplate();
         $main_tpl->addCss($this->plugin->getDirectory() . "/css/captcha.css");
 
         // json_encode() gives a safely quoted JS string literal; raw
         // concatenation is the wrong tool in a JS-string context.
         $image_src_js = json_encode($image_src, JSON_THROW_ON_ERROR);
+        $current_src_js = json_encode($current_src, JSON_THROW_ON_ERROR);
 
         $tpl = $this->plugin->getTemplate("default/tpl.captcha_widget.html");
-        $tpl->setVariable("CAPTCHA_IMG_SRC", htmlspecialchars($image_src, ENT_QUOTES, "UTF-8"));
+        $tpl->setVariable("CAPTCHA_IMG_SRC", htmlspecialchars($current_src, ENT_QUOTES, "UTF-8"));
+        $tpl->setVariable("CAPTCHA_CURRENT_SRC_JS", $current_src_js);
         $tpl->setVariable("CAPTCHA_IMG_SRC_JS", $image_src_js);
         $tpl->setVariable("CAPTCHA_ALT", $this->plugin->txt("captcha_alt"));
         $tpl->setVariable("CAPTCHA_LABEL", $this->plugin->txt("captcha_label"));

@@ -24,6 +24,9 @@ class ilAuthGuardGUI
     /** @var string generate and stream a fresh CAPTCHA image */
     public const CMD_SHOW_IMAGE = "showImage";
 
+    /** @var string stream the image of the phrase issued at render time, without changing the session */
+    public const CMD_CURRENT_IMAGE = "currentImage";
+
     /** @var float minimum seconds between two image regenerations for the same session; may be fractional */
     public const MIN_REGENERATION_INTERVAL_SECONDS = 1.0;
 
@@ -68,12 +71,46 @@ class ilAuthGuardGUI
 
         switch ($cmd) {
             case self::CMD_SHOW_IMAGE:
+            case self::CMD_CURRENT_IMAGE:
                 $this->$cmd();
                 break;
 
             default:
                 ilAuthGuardHelper::respondNotFound();
         }
+    }
+
+    /**
+     * Streams the image of the phrase the form render issued. It only reads the
+     * session and then discards it (session_abort), so this request never
+     * writes the session back and cannot erase a write of the render request.
+     * Answers 404 while that phrase is not stored yet (the render request
+     * writes its session after sending the page); the widget asks again.
+     *
+     * @return never
+     */
+    protected function currentImage(): never
+    {
+        $phrase = ilAuthGuardHelper::readExpectedPhrase();
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_abort();
+        }
+
+        if ($phrase === "") {
+            ilAuthGuardHelper::respondNotFound();
+        }
+
+        $builder = new \Gregwar\Captcha\CaptchaBuilder($phrase);
+        $builder->build();
+
+        $image_type = $builder->getImageType();
+
+        ilAuthGuardHelper::respondWithUncacheableImage(
+            $builder->get(),
+            "image/" . $image_type,
+            "captcha." . $image_type
+        );
     }
 
     /**

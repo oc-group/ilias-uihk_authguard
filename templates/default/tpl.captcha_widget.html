@@ -14,6 +14,15 @@
 </div>
 <script>
 var authguardLastReload = 0;
+var authguardImageRetries = 0;
+document.getElementById('authguard_image').addEventListener('error', function () {
+	// The page is sent before its session is written; the first request can come too early.
+	if (authguardImageRetries++ < 8) {
+		setTimeout(function () {
+			document.getElementById('authguard_image').src = {CAPTCHA_CURRENT_SRC_JS} + '&_=' + Date.now();
+		}, 400);
+	}
+});
 document.getElementById('authguard_reload').addEventListener('click', function (e) {
 	e.preventDefault();
 	var now = Date.now();
