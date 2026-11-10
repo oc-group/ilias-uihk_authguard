@@ -42,7 +42,7 @@ final class ilAuthGuardPrivacyDrafts
     /** @var ilAuthGuardPrivacyText builds the drafts and the checks from the template */
     private ilAuthGuardPrivacyText $text;
 
-    /** @var RoundTrip|null|false the modal, built on first use; null when no provider has a draft */
+    /** @var RoundTrip|null|false the modal, built on first use (null: none) */
     private RoundTrip|null|false $modal = false;
 
     /**
@@ -68,7 +68,7 @@ final class ilAuthGuardPrivacyDrafts
     }
 
     /**
-     * @return StandardButton|null the button that opens the modal; null without drafts
+     * @return StandardButton|null the button that opens the modal, or null
      */
     public function createButton(): ?StandardButton
     {
@@ -81,7 +81,8 @@ final class ilAuthGuardPrivacyDrafts
 
     /**
      * @return RoundTrip|null the modal; null without drafts. It is the same
-     *     object on every call, so the button's signal reaches the rendered modal.
+     *     object on every call, so the button's signal reaches the rendered
+     *     modal.
      */
     public function createModal(): ?RoundTrip
     {
