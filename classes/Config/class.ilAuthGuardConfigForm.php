@@ -172,9 +172,8 @@ final class ilAuthGuardConfigForm
                 $options[$value] = $this->txt($title_key);
             }
 
-            // Not required: a required input makes KS mark the whole provider option
-            // with the asterisk, which no other provider has. The check of the
-            // provider rejects the empty option when this provider is selected.
+            // Not required: a required input makes KS mark the whole option
+            // with an asterisk; the provider check rejects an empty value.
             return $field->select($label, $options, $info)
                 ->withValue(array_key_exists($current, $options) ? $current : $setting->default);
         }
