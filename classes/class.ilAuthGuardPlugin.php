@@ -76,8 +76,8 @@ class ilAuthGuardPlugin extends ilUserInterfaceHookPlugin
             return false;
         }
 
-        // getCurrentClassPath() returns declared class names in mixed case, unlike
-        // most ilCtrl lookups by name; normalize before comparing.
+        // getCurrentClassPath() returns declared class names in mixed case,
+        // unlike most ilCtrl lookups by name; normalize before comparing.
         if (array_map('strtolower', $DIC->ctrl()->getCurrentClassPath()) !== self::REGISTRATION_CLASS_PATH) {
             return false;
         }
@@ -105,14 +105,14 @@ class ilAuthGuardPlugin extends ilUserInterfaceHookPlugin
             return;
         }
 
-        ilAuthGuardHelper::redirectWithFailureMessage($this->txt("submit_too_fast"));
+        $this->rejectSubmit("timing");
     }
 
     /**
      * Compares the submitted code against the phrase held in the session and
      * redirects back to the form on failure. The phrase is consumed before
-     * the comparison, so it can never be tried twice. An empty field and a
-     * missing phrase share one message, a wrong code gets another.
+     * the comparison, so it can never be tried twice. Every failure gives the
+     * same message; the reason is only logged.
      *
      * @return void
      */
@@ -126,7 +126,8 @@ class ilAuthGuardPlugin extends ilUserInterfaceHookPlugin
             try {
                 $submitted = $post->retrieve("captcha_code", $DIC->refinery()->kindlyTo()->string());
             } catch (\UnexpectedValueException) {
-                // An array-valued field must fail closed here, not raise an error.
+                // An array-valued field must fail closed here, not raise an
+                // error.
                 $submitted = "";
             }
         }
@@ -135,14 +136,33 @@ class ilAuthGuardPlugin extends ilUserInterfaceHookPlugin
         ilAuthGuardHelper::clearExpectedPhrase();
 
         if (trim($submitted) === "" || trim($expected) === "") {
-            ilAuthGuardHelper::redirectWithFailureMessage($this->txt("captcha_required"));
+            $this->rejectSubmit("captcha_missing");
         }
 
         if (ilAuthGuardHelper::isValid($submitted, $expected)) {
             return;
         }
 
-        ilAuthGuardHelper::redirectWithFailureMessage($this->txt("captcha_validation_failed"));
+        $this->rejectSubmit("captcha_wrong");
+    }
+
+    /**
+     * Logs the reason of a rejected submit and redirects back to the form
+     * with one message for every reason: the visitor, and a bot, is not told
+     * which check failed. The reason stays in the ILIAS log.
+     *
+     * @param string $reason one of "timing", "captcha_missing", "captcha_wrong"
+     * @return never
+     */
+    private function rejectSubmit(string $reason): never
+    {
+        global $DIC;
+
+        $DIC->logger()->root()->warning(
+            "AuthGuard: submit rejected (form: registration, reason: " . $reason . ")"
+        );
+
+        ilAuthGuardHelper::redirectWithFailureMessage($this->txt("security_check_failed"));
     }
 
     /**

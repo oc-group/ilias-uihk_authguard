@@ -34,6 +34,30 @@ class ilAuthGuardHelper
     /** @var int RFC 6585 status code, not covered by core's StatusCode */
     private const HTTP_TOO_MANY_REQUESTS = 429;
 
+    /** @var string characters of a phrase, the alphabet of the CAPTCHA library without "o" and "0" */
+    private const PHRASE_CHARSET = "abcdefghijklmnpqrstuvwxyz123456789";
+
+    /** @var int length of a phrase */
+    private const PHRASE_LENGTH = 5;
+
+    /**
+     * Returns a new random phrase. Generated in the request that renders the
+     * form, which writes the session last (see ilAuthGuardUIHookGUI), so the
+     * phrase is not erased by that request's own late session write.
+     *
+     * @return string
+     */
+    public static function generatePhrase(): string
+    {
+        $phrase = "";
+        $last = strlen(self::PHRASE_CHARSET) - 1;
+        for ($i = 0; $i < self::PHRASE_LENGTH; $i++) {
+            $phrase .= self::PHRASE_CHARSET[random_int(0, $last)];
+        }
+
+        return $phrase;
+    }
+
     /**
      * Compares the submitted answer against the expected phrase.
      * Case-insensitive and whitespace-trimmed by design: the rendered phrase

@@ -42,7 +42,8 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
      * @param string $a_comp
      * @param string $a_part
      * @param array<string, mixed> $a_par
-     * @return array<string, mixed> the HTML operation (APPEND, PREPEND, REPLACE, KEEP) and the HTML
+     * @return array<string, mixed> the HTML operation (APPEND, PREPEND,
+     *     REPLACE, KEEP) and the HTML
      */
     public function getHTML(
         string $a_comp,
@@ -76,8 +77,8 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
             return false;
         }
 
-        // getCurrentClassPath() returns declared class names in mixed case, unlike
-        // most ilCtrl lookups by name; normalize before comparing.
+        // getCurrentClassPath() returns declared class names in mixed case,
+        // unlike most ilCtrl lookups by name; normalize before comparing.
         if (
             array_map('strtolower', $DIC->ctrl()->getCurrentClassPath())
             !== ilAuthGuardPlugin::REGISTRATION_CLASS_PATH
@@ -102,16 +103,21 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
         global $DIC;
 
         self::$widget_injected = true;
-        ilAuthGuardHelper::storeFormRenderedTime(microtime(true));
+        // ILIAS prints the page, then writes the session without a lock: the
+        // phrase is issued here (last writer), the image request only reads it.
+        $now = microtime(true);
+        ilAuthGuardHelper::storeFormRenderedTime($now);
+        ilAuthGuardHelper::storeExpectedPhrase(ilAuthGuardHelper::generatePhrase());
+        ilAuthGuardHelper::storeLastGenerationTime($now);
 
         $widget_html = $this->renderWidget($DIC);
         $html = (string) ($a_par["html"] ?? "");
 
-        // "ilFormFooter row clearfix" wraps only the submit-button row;
-        // prepending the widget there puts it right before the button.
-        $replaced = preg_replace(
+        // Prepended to the submit-button row ("ilFormFooter row clearfix"), by
+        // callback: "$1" or "\1" in a text is then no back reference.
+        $replaced = preg_replace_callback(
             '/<div class="ilFormFooter row clearfix">/',
-            $widget_html . '<div class="ilFormFooter row clearfix">',
+            static fn (array $match): string => $widget_html . $match[0],
             $html,
             1,
             $replacement_count
@@ -145,15 +151,22 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
             ilAuthGuardGUI::CMD_SHOW_IMAGE
         );
 
+        $current_src = $dic->ctrl()->getLinkTargetByClass(
+            [ilUIPluginRouterGUI::class, ilAuthGuardGUI::class],
+            ilAuthGuardGUI::CMD_CURRENT_IMAGE
+        );
+
         $main_tpl = $dic->ui()->mainTemplate();
         $main_tpl->addCss($this->plugin->getDirectory() . "/css/captcha.css");
 
         // json_encode() gives a safely quoted JS string literal; raw
         // concatenation is the wrong tool in a JS-string context.
         $image_src_js = json_encode($image_src, JSON_THROW_ON_ERROR);
+        $current_src_js = json_encode($current_src, JSON_THROW_ON_ERROR);
 
         $tpl = $this->plugin->getTemplate("default/tpl.captcha_widget.html");
-        $tpl->setVariable("CAPTCHA_IMG_SRC", htmlspecialchars($image_src, ENT_QUOTES, "UTF-8"));
+        $tpl->setVariable("CAPTCHA_IMG_SRC", htmlspecialchars($current_src, ENT_QUOTES, "UTF-8"));
+        $tpl->setVariable("CAPTCHA_CURRENT_SRC_JS", $current_src_js);
         $tpl->setVariable("CAPTCHA_IMG_SRC_JS", $image_src_js);
         $tpl->setVariable("CAPTCHA_ALT", $this->plugin->txt("captcha_alt"));
         $tpl->setVariable("CAPTCHA_LABEL", $this->plugin->txt("captcha_label"));
