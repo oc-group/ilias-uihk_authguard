@@ -42,7 +42,8 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
      * @param string $a_comp
      * @param string $a_part
      * @param array<string, mixed> $a_par
-     * @return array<string, mixed> the HTML operation (APPEND, PREPEND, REPLACE, KEEP) and the HTML
+     * @return array<string, mixed> the HTML operation (APPEND, PREPEND,
+     *     REPLACE, KEEP) and the HTML
      */
     public function getHTML(
         string $a_comp,
@@ -76,8 +77,8 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
             return false;
         }
 
-        // getCurrentClassPath() returns declared class names in mixed case, unlike
-        // most ilCtrl lookups by name; normalize before comparing.
+        // getCurrentClassPath() returns declared class names in mixed case,
+        // unlike most ilCtrl lookups by name; normalize before comparing.
         if (
             array_map('strtolower', $DIC->ctrl()->getCurrentClassPath())
             !== ilAuthGuardPlugin::REGISTRATION_CLASS_PATH
@@ -107,11 +108,11 @@ class ilAuthGuardUIHookGUI extends ilUIHookPluginGUI
         $widget_html = $this->renderWidget($DIC);
         $html = (string) ($a_par["html"] ?? "");
 
-        // "ilFormFooter row clearfix" wraps only the submit-button row;
-        // prepending the widget there puts it right before the button.
-        $replaced = preg_replace(
+        // Prepended to the submit-button row ("ilFormFooter row clearfix"), by
+        // callback: "$1" or "\1" in a text is then no back reference.
+        $replaced = preg_replace_callback(
             '/<div class="ilFormFooter row clearfix">/',
-            $widget_html . '<div class="ilFormFooter row clearfix">',
+            static fn (array $match): string => $widget_html . $match[0],
             $html,
             1,
             $replacement_count
